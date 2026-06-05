@@ -51,6 +51,8 @@ func (w *Worker) Run(ctx context.Context) {
 }
 
 func (w *Worker) dequeue(ctx context.Context) (*task.Task, error) {
+	// try each queue in priority order
+
 	for _, q := range w.Queues {
 		t, err := w.Broker.TryDequeue(ctx, q) // LPOP, non blocking
 		if err != nil {
@@ -65,6 +67,6 @@ func (w *Worker) dequeue(ctx context.Context) (*task.Task, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-time.After(2 * time.Second):
-		return nil, nil
+		return nil, nil // try again
 	}
 }

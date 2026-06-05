@@ -3,6 +3,7 @@ package main
 import (
 	"Onion/beat"
 	"Onion/broker"
+	"Onion/errors"
 	"Onion/queue"
 	"Onion/task"
 	"Onion/worker"
@@ -15,40 +16,53 @@ import (
 )
 
 type App struct {
-	Broker    *broker.RedisBroker
+	Broker    broker.Broker
 	Backend   interface{} // dk wat to do with this for rn
 	Registry  *worker.Registry
+	running   bool
 	Schedules []beat.ScheduleEntry
 	Config    Config
 }
 
 type Config struct {
-	BrokerAddr  string
-	BackendURL  string // dk wat to do with this for rn
-	Concurrency int
-	Queues      []queue.Queue
+	BrokerAddr   string
+	BackendURL   string // dk wat to do with this for rn
+	Concurrency  int
+	Queues       []queue.Queue
+	TaskRoutes   map[string]string // user can update as {"taskName", "queuename"}
+	DefaultQueue string            // default queue for user to define
 }
 
-func New(config ...Config) (*App, error) {
-	// initialise new app with broker and bakend
-
-	if len(config) == 0 {
-		// log here
+func defaultConfig() Config {
+	return Config{
+		Concurrency:  5,
+		DefaultQueue: "default",
+		TaskRoutes:   make(map[string]string),
+		Queues:       []queue.Queue{{Name: "defult", Priority: 5}},
 	}
-	cfg := config[0] // unpack
+}
 
+func New(cfg Config) (*App, error) {
+	// add defaults in here at some point
+
+	if cfg.BrokerAddr == "" { // need broker address
+		return nil, errors.ErrBrokerRequired
+	}
 	br := broker.New(cfg.BrokerAddr)
-	ba := backend.New(cfg.BackendURL)
+	// ba := backend.New(cfg.BackendURL)
 
 	// initialise an empty registry and only every append to it
 	r := worker.New()
 
-	return &App{
-		Broker:   br,
-		Backend:  ba,
-		Registry: r,
-	}, nil
+	// initiliase all maps and arrays in configs so user only needs to append
+	// and doesnt cause errors
 
+	return &App{
+		Broker: br,
+		// Backend:  ba,
+		Registry: r,
+		Config:   cfg,
+	}, nil
 }
 
 func (a *App) Register(name string, fn interface{}, config ...task.Config) error {
@@ -75,7 +89,7 @@ func (a *App) Schedule(name string, cron string) {
 }
 
 func (a *App) Start() error {
-	// when to mention queue priority guys
+	a.running = true
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
@@ -89,7 +103,7 @@ func (a *App) Start() error {
 			defer wg.Done()
 			w := &worker.Worker{
 				Queues:   a.Config.Queues,
-				Broker:   *a.Broker,
+				Broker:   a.Broker,
 				Registry: a.Registry,
 			}
 			w.Run(ctx)
@@ -112,16 +126,55 @@ func (a *App) Start() error {
 	wg.Wait()
 	return nil
 }
+func (a *App) UpdateConfig(cfg Config) error {
+	if a.running {
+		return errors.ErrAppRunning
+	}
+	if cfg.BrokerAddr != "" { // recompute
+		a.Config.BrokerAddr = cfg.BrokerAddr
+		a.Broker = broker.New(cfg.BrokerAddr) // recompute
+	}
+	// if cfg.BackendURL != "" { //recompute
+	// 	a.Config.BackendURL = cfg.BackendURL
+	// 	a.Backend = backend.New(cfg.BackendURL) // recompute
+	// }
+
+	if cfg.Concurrency > 0 {
+		a.Config.Concurrency = cfg.Concurrency
+	} else {
+		// log and fallback to prev version
+	}
+
+	if cfg.DefaultQueue != "" {
+		a.Config.DefaultQueue = cfg.DefaultQueue
+	}
+
+	for name, priority := range cfg.Queues {
+		a.Config.Queues[name] = priority
+	}
+	for task, queue := range cfg.TaskRoutes {
+		a.Config.TaskRoutes[task] = queue
+	}
+	return nil // ideally, run a a.validate here but eh
+}
 
 func main() {
 	// example
 
-	// app := Onion.New(config) // config has their broker and other configs
+	// app := Onion.New(config) // config has their brokers, queues, task routing etc
+
 	// register a task
 	// app.Register("name", function, args) // registers a task
+
+	// schedule a task (beat)
 	// app.Schedule("name", "cron") // schedule repeated tasks
 
+	// update config
+	// app.UpdateConfig(config) // only updates the mentioned fields, doesnt replace entire obj
+
 	// app.Start() // runs
+
+	// when want to call a task
 	// app.Enqueue(ctx, "send_email", args, goqueue.WithQueue("emails"))
 
 }
