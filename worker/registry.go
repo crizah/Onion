@@ -1,6 +1,7 @@
-package registry
+package worker
 
 import (
+	"Onion/errors"
 	"Onion/task"
 	"sync"
 )
@@ -25,4 +26,19 @@ func (r *Registry) Set(name string, entry RegistryEntry) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.entries[name] = entry
+}
+
+func (r *Registry) Lookup(name string) (*RegistryEntry, error) {
+	// lookup task from registry
+
+	r.mu.Lock()
+	defer r.mu.Lock()
+	entry, ok := r.entries[name]
+	if !ok {
+		return &RegistryEntry{}, errors.ErrTaskNotRegistered
+
+	}
+
+	return &entry, nil
+
 }
