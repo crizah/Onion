@@ -41,27 +41,25 @@ func New(config ...Config) (*App, error) {
 }
 
 func (a *App) Register(name string, fn interface{}, config ...task.Config) error {
-	// registers tasks into the registery that the worker reads from
-	// we dont need to retrurn the registry, prolly shouldnt
+	// only register the task, dont create one just yet
 
-	// create a task and enter it into registry
-	t := task.New(name, config...)
-
-	// add task to a.Registry
+	cfg := task.Config{MaxRetries: 3} // defaults here
+	if len(config) > 0 {
+		cfg = config[0]
+	}
 	a.Registry.Set(name, registry.RegistryEntry{
-		Task:     t,
 		Function: fn,
+		Config:   cfg,
 	})
 
 	return nil
-
 }
 
 func main() {
 	// example
 
 	// app := Onion.New(config) // config has their broker and other configs
-	// define a task
+	// register a task
 	// app.Register("name", function, args) // registers a task
 
 }

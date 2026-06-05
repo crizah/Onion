@@ -6,8 +6,8 @@ import (
 )
 
 type RegistryEntry struct {
-	Task     *task.Task // has id and shit
-	Function interface{}
+	Function interface{} // dk abut the type for this right now
+	Config   task.Config // options/config
 }
 
 type Registry struct {
