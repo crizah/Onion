@@ -2,7 +2,6 @@ package worker
 
 import (
 	"Onion/broker"
-	"Onion/queue"
 	"Onion/task"
 	"context"
 	"sort"
@@ -10,7 +9,7 @@ import (
 )
 
 type Worker struct {
-	Queues   []queue.Queue // wroker can be subscribes to multiple queues
+	Queues   []broker.Queue // wroker can be subscribes to multiple queues
 	Broker   broker.Broker
 	Registry *Registry
 }

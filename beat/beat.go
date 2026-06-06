@@ -3,7 +3,6 @@ package beat
 import (
 	"Onion/broker"
 	"Onion/cron"
-	"Onion/queue"
 	"Onion/task"
 	"context"
 	"fmt"
@@ -17,11 +16,11 @@ type ScheduleEntry struct {
 type Beat struct {
 	Schedules []ScheduleEntry
 	Broker    broker.Broker
-	Queue     []queue.Queue
+	Queue     []broker.Queue
 	cron      *cron.Cron
 }
 
-func New(schedules []ScheduleEntry, br broker.Broker, queue []queue.Queue) *Beat {
+func New(schedules []ScheduleEntry, br broker.Broker, queue []broker.Queue) *Beat {
 	return &Beat{
 		Schedules: schedules,
 		Broker:    br,
