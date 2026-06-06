@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -21,6 +22,11 @@ type Task struct {
 	Name   string         `json:"name"`
 	Args   map[string]any `json:"args"` // function args
 	// TaskConfig TaskConfig     `json:"taskConfig"` // already sits in registry
+	Output      any       `json:"output"` // output of the function
+	CreatedAt   time.Time `json:"created_at"`
+	StartedAt   time.Time `json:"started_at"`
+	CompletedAt time.Time `json:"completed_at"`
+	DurationMs  int64     `json:"duration_ms"`
 }
 
 type TaskFunction func(ctx context.Context, args map[string]any) (any, error)
@@ -34,9 +40,10 @@ type TaskConfig struct {
 func New(name string, args map[string]any) *Task {
 
 	return &Task{
-		Id:     uuid.New(),
-		Name:   name,
-		Status: PENDING,
-		Args:   args,
+		Id:        uuid.New(),
+		Name:      name,
+		Status:    PENDING,
+		Args:      args,
+		CreatedAt: time.Now(),
 	}
 }

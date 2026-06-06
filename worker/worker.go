@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"Onion/backend"
 	"Onion/broker"
 	"Onion/task"
 	"context"
@@ -13,6 +14,7 @@ type Worker struct {
 	Queues   []broker.Queue // wroker can be subscribes to multiple queues
 	Broker   broker.Broker
 	Registry *Registry
+	Backend  backend.Backend
 }
 
 func (w *Worker) Run(ctx context.Context) {
@@ -26,7 +28,7 @@ func (w *Worker) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			t, err := w.dequeue(ctx) // dequeue in priority order
+			t, q, err := w.dequeue(ctx) // dequeue in priority order
 			if err != nil {
 				return
 			}
@@ -39,31 +41,43 @@ func (w *Worker) Run(ctx context.Context) {
 				fmt.Printf("[worker] lookup failed for %q: %v\n", t.Name, err)
 				continue
 			}
+
+			record := &backend.TaskRecord{Task: t, Queue: q.Name, Config: entry.TaskConfig}
+
 			t.Status = task.RUNNING
-			if _, err := entry.TaskFunction(ctx, t.Args); err != nil {
+			t.StartedAt = time.Now()
+			w.Backend.Save(ctx, record)
+
+			output, err := entry.TaskFunction(ctx, t.Args)
+			now := time.Now()
+			t.CompletedAt = now
+			t.DurationMs = now.Sub(t.StartedAt).Milliseconds()
+			if err != nil {
 				t.Status = task.FAILED
 			} else {
 				t.Status = task.COMPLETED
+				t.Output = output
 			}
+			w.Backend.Save(ctx, record)
 		}
 	}
 }
 
-func (w *Worker) dequeue(ctx context.Context) (*task.Task, error) {
+func (w *Worker) dequeue(ctx context.Context) (*task.Task, broker.Queue, error) {
 	for _, q := range w.Queues {
 		t, err := w.Broker.TryDequeue(ctx, q) // LPOP, non blocking
 		if err != nil {
-			return nil, err
+			return nil, broker.Queue{}, err
 		}
 		if t != nil {
-			return t, nil // got one, stop checking
+			return t, q, nil // got one, stop checking
 		}
 	}
 	// nothing in any queue, sleep before next poll
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, broker.Queue{}, ctx.Err()
 	case <-time.After(2 * time.Second):
-		return nil, nil // try again
+		return nil, broker.Queue{}, nil // try again
 	}
 }
