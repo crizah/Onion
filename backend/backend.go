@@ -13,6 +13,8 @@ type TaskRecord struct {
 	*task.Task
 	Queue  string
 	Config task.TaskConfig
+	Output any // output of the function
+	Error  any
 }
 
 type Backend interface {

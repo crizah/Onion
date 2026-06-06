@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     args         JSONB,
     output       JSONB,
     config       JSONB,
+    error        JSONB,
     created_at   TIMESTAMPTZ,
     started_at   TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,

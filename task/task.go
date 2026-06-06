@@ -22,7 +22,6 @@ type Task struct {
 	Name   string         `json:"name"`
 	Args   map[string]any `json:"args"` // function args
 	// TaskConfig TaskConfig     `json:"taskConfig"` // already sits in registry
-	Output      any       `json:"output"` // output of the function
 	CreatedAt   time.Time `json:"created_at"`
 	StartedAt   time.Time `json:"started_at"`
 	CompletedAt time.Time `json:"completed_at"`

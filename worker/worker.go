@@ -54,9 +54,10 @@ func (w *Worker) Run(ctx context.Context) {
 			t.DurationMs = now.Sub(t.StartedAt).Milliseconds()
 			if err != nil {
 				t.Status = task.FAILED
+				record.Error = err
 			} else {
 				t.Status = task.COMPLETED
-				t.Output = output
+				record.Output = output
 			}
 			w.Backend.Save(ctx, record)
 		}

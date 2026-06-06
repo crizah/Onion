@@ -96,6 +96,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq" // this registers the "postgres" driver
 )
 
@@ -135,6 +136,7 @@ func bulkExport(ctx context.Context, args map[string]any) (any, error) {
 // ── main ─────────────────────────────────────────────────────────────────────
 
 func main() {
+	godotenv.Load()
 	// ── 1. init app ──────────────────────────────────────────────────────────
 	backend_url := os.Getenv("BACKED_URl")
 	broker_addr := os.Getenv("BROKER_URL")
