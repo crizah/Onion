@@ -1,6 +1,7 @@
 package beat
 
 import (
+	"Onion/backend"
 	"Onion/broker"
 	"Onion/task"
 	"context"
@@ -19,13 +20,14 @@ type ScheduleEntry struct {
 type Beat struct {
 	Schedules    []ScheduleEntry
 	Broker       broker.Broker
+	Backend      backend.Backend
 	Queues       []broker.Queue
 	TaskRoutes   map[string]string
 	DefaultQueue string
 	cron         *cron.Cron
 }
 
-func New(schedules []ScheduleEntry, br broker.Broker, queue []broker.Queue, taskRoutes map[string]string, dq string) *Beat {
+func New(schedules []ScheduleEntry, br broker.Broker, queue []broker.Queue, taskRoutes map[string]string, dq string, ba backend.Backend) *Beat {
 	// only called when making an actual beat
 	return &Beat{
 		Schedules:    schedules,
@@ -34,6 +36,7 @@ func New(schedules []ScheduleEntry, br broker.Broker, queue []broker.Queue, task
 		DefaultQueue: dq,
 		TaskRoutes:   taskRoutes,
 		cron:         cron.New(),
+		Backend:      ba,
 	}
 }
 
@@ -42,7 +45,11 @@ func (b *Beat) Start(ctx context.Context) error {
 		s := s
 		_, err := b.cron.AddFunc(s.Expr, func() { // schedule the cron for it to add to queue
 			t := task.New(s.TaskName, s.Args)
+
 			q := b.resolveQueue(s.TaskName)
+			record := &backend.TaskRecord{Task: t, Queue: q.Name} // no config — beat doesn't have registry access
+			b.Backend.Save(ctx, record)                           // write
+
 			if err := b.Broker.Enqueue(ctx, q.Name, t); err != nil {
 				fmt.Printf("beat: failed to enqueue %q: %v\n", s.TaskName, err)
 			}

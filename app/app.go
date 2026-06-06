@@ -1,6 +1,7 @@
 package app
 
 import (
+	"Onion/backend"
 	"Onion/beat"
 	"Onion/broker"
 	"Onion/errors"
@@ -16,7 +17,7 @@ import (
 
 type App struct {
 	Broker    broker.Broker
-	Backend   interface{} // dk wat to do with this for rn
+	Backend   backend.Backend // dk wat to do with this for rn
 	Registry  *worker.Registry
 	running   bool
 	Schedules []beat.ScheduleEntry
@@ -55,8 +56,11 @@ func New(cfg Config) (*App, error) {
 	if cfg.BrokerAddr == "" { // need broker address
 		return nil, errors.ErrBrokerRequired
 	}
-	br := broker.New(cfg.BrokerAddr)
-	// ba := backend.New(cfg.BackendURL)
+	br := broker.New(cfg.BrokerAddr) // TODO: add error handeling here
+	ba, err := backend.New(cfg.BackendURL)
+	if err != nil {
+		return nil, err
+	}
 
 	// initialise an empty registry and only every append to it
 	r := worker.New()
@@ -65,8 +69,8 @@ func New(cfg Config) (*App, error) {
 	// and doesnt cause errors
 
 	return &App{
-		Broker: br,
-		// Backend:  ba,
+		Broker:   br,
+		Backend:  ba,
 		Registry: r,
 		Config:   cfg,
 	}, nil
@@ -128,6 +132,7 @@ func (a *App) Start() error {
 				Queues:   a.Config.Queues,
 				Broker:   a.Broker,
 				Registry: a.Registry,
+				Backend:  a.Backend,
 			}
 			w.Run(ctx)
 		}()
@@ -138,7 +143,7 @@ func (a *App) Start() error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			b := beat.New(a.Schedules, a.Broker, a.Config.Queues, a.Config.TaskRoutes, a.Config.DefaultQueue)
+			b := beat.New(a.Schedules, a.Broker, a.Config.Queues, a.Config.TaskRoutes, a.Config.DefaultQueue, a.Backend)
 			if err := b.Start(ctx); err != nil {
 				// raise error here
 				fmt.Printf("beat error: %v\n", err)
@@ -155,13 +160,19 @@ func (a *App) UpdateConfig(cfg Config) error {
 		return errors.ErrAppRunning
 	}
 	if cfg.BrokerAddr != "" { // recompute
+		// TODO: add error handeling here
 		a.Config.BrokerAddr = cfg.BrokerAddr
 		a.Broker = broker.New(cfg.BrokerAddr) // recompute
 	}
-	// if cfg.BackendURL != "" { //recompute
-	// 	a.Config.BackendURL = cfg.BackendURL
-	// 	a.Backend = backend.New(cfg.BackendURL) // recompute
-	// }
+	if cfg.BackendURL != "" { //recompute
+		a.Config.BackendURL = cfg.BackendURL
+		b, err := backend.New(cfg.BackendURL)
+		if err != nil {
+			return err
+		}
+
+		a.Backend = b
+	}
 
 	if cfg.Concurrency > 0 {
 		a.Config.Concurrency = cfg.Concurrency
@@ -207,6 +218,12 @@ func (a *App) Enqueue(ctx context.Context, taskName string, args map[string]any)
 	if err != nil {
 		return err
 	}
-	return a.Broker.Enqueue(ctx, q.Name, t)
 
+	var cfg task.TaskConfig
+	if entry, err := a.Registry.Lookup(taskName); err == nil {
+		cfg = entry.TaskConfig // task may not be registered on the producer side, that's ok
+	}
+	a.Backend.Save(ctx, &backend.TaskRecord{Task: t, Queue: q.Name, Config: cfg}) // write
+
+	return a.Broker.Enqueue(ctx, q.Name, t)
 }

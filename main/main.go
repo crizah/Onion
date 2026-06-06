@@ -93,7 +93,10 @@ import (
 	"Onion/broker"
 	"context"
 	"fmt"
+	"os"
 	"time"
+
+	_ "github.com/lib/pq" // this registers the "postgres" driver
 )
 
 // ── task functions ────────────────────────────────────────────────────────────
@@ -133,8 +136,11 @@ func bulkExport(ctx context.Context, args map[string]any) (any, error) {
 
 func main() {
 	// ── 1. init app ──────────────────────────────────────────────────────────
+	backend_url := os.Getenv("BACKED_URl")
+	broker_addr := os.Getenv("BROKER_URL")
 	App, err := app.New(app.Config{
-		BrokerAddr:   "localhost:6379",
+		BrokerAddr:   broker_addr,
+		BackendURL:   backend_url,
 		Concurrency:  3,
 		DefaultQueue: "default",
 		Queues: []broker.Queue{
