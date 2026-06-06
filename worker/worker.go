@@ -4,6 +4,7 @@ import (
 	"Onion/broker"
 	"Onion/task"
 	"context"
+	"fmt"
 	"sort"
 	"time"
 )
@@ -36,9 +37,9 @@ func (w *Worker) Run(ctx context.Context) {
 			entry, err := w.Registry.Lookup(t.Name)
 			if err != nil {
 				// TODO: raise ErrTaskNotRegistered here
+				fmt.Printf("[worker] lookup failed for %q: %v\n", t.Name, err)
 				continue
 			}
-
 			t.Status = task.RUNNING
 			if err := entry.TaskFunction(ctx, t.Args); err != nil {
 				t.Status = task.FAILED
@@ -50,8 +51,6 @@ func (w *Worker) Run(ctx context.Context) {
 }
 
 func (w *Worker) dequeue(ctx context.Context) (*task.Task, error) {
-	// try each queue in priority order
-
 	for _, q := range w.Queues {
 		t, err := w.Broker.TryDequeue(ctx, q) // LPOP, non blocking
 		if err != nil {

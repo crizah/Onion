@@ -18,7 +18,7 @@ const (
 type Task struct {
 	Id     uuid.UUID      `json:"id"`
 	Status State          `json:"status"`
-	Name   string         `json:"string"`
+	Name   string         `json:"name"`
 	Args   map[string]any `json:"args"` // function args
 	// TaskConfig TaskConfig     `json:"taskConfig"` // already sits in registry
 }

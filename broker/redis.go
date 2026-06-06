@@ -42,6 +42,7 @@ func (r *RedisBroker) Dequeue(ctx context.Context, q Queue) (*task.Task, error) 
 }
 
 func (r *RedisBroker) TryDequeue(ctx context.Context, q Queue) (*task.Task, error) {
+
 	result, err := r.client.LPop(ctx, q.Name).Result()
 	if err == redis.Nil {
 		return nil, nil // queue empty, not an error

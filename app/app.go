@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"Onion/beat"
@@ -30,6 +30,46 @@ type Config struct {
 	Queues       []broker.Queue
 	TaskRoutes   map[string]string // user can update as {"taskName", "queuename"}
 	DefaultQueue string            // default queue for user to define
+}
+
+func New(cfg Config) (*App, error) {
+	// add defaults in here at some point
+
+	if cfg.DefaultQueue != "" { // if user gave us a deafult queue
+		if cfg.Queues == nil { // and didnt register ANY quues
+			cfg.Queues = []broker.Queue{{Name: cfg.DefaultQueue, Priority: 5}} // we regsiter one ourselves
+		} else { // if they did register queue, try to find default
+			found := false
+			for _, q := range cfg.Queues {
+				if q.Name == cfg.DefaultQueue {
+					found = true
+					break
+				}
+			}
+			if !found { // if not found, make one ourselves
+				cfg.Queues = append(cfg.Queues, broker.Queue{Name: cfg.DefaultQueue, Priority: 5})
+			}
+		}
+	}
+
+	if cfg.BrokerAddr == "" { // need broker address
+		return nil, errors.ErrBrokerRequired
+	}
+	br := broker.New(cfg.BrokerAddr)
+	// ba := backend.New(cfg.BackendURL)
+
+	// initialise an empty registry and only every append to it
+	r := worker.New()
+
+	// initiliase all maps and arrays in configs so user only needs to append
+	// and doesnt cause errors
+
+	return &App{
+		Broker: br,
+		// Backend:  ba,
+		Registry: r,
+		Config:   cfg,
+	}, nil
 }
 
 func defaultConfig() Config {

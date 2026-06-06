@@ -32,8 +32,8 @@ func (r *Registry) Set(name string, entry RegistryEntry) {
 func (r *Registry) Lookup(name string) (*RegistryEntry, error) {
 	// lookup task from registry
 
-	r.mu.Lock()
-	defer r.mu.Lock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	entry, ok := r.entries[name]
 	if !ok {
 		return &RegistryEntry{}, errors.ErrTaskNotRegistered
