@@ -15,7 +15,7 @@ type Worker struct {
 }
 
 func (w *Worker) Run(ctx context.Context) {
-	// sort queue based on priority, should prolly use a better data structure here
+	// sort queue based on priority
 	sort.Slice(w.Queues, func(i, j int) bool {
 		return w.Queues[i].Priority > w.Queues[j].Priority
 	})
