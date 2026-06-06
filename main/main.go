@@ -39,7 +39,8 @@ func main() {
 	// have an option to update the taskConfig  as well
 
 	// schedule a task (beat)
-	// app.Schedule("name", "cron") // schedule repeated tasks
+	// can only schedule if registerred first
+	// app.Schedule("scheduleName", "taskName", "*****", args map[string]any) // schedule repeated tasks
 
 	// update config
 	// app.UpdateConfig(config) // only updates the mentioned fields, doesnt replace entire obj

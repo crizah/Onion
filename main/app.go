@@ -56,12 +56,19 @@ func (a *App) Register(name string, fn task.TaskFunction, config ...task.TaskCon
 	return nil
 }
 
-func (a *App) Schedule(name string, cron string) {
-	// adds tasks for the beat to read from
+func (a *App) Schedule(scheduleName string, taskName string, cronExpr string, args map[string]any) error {
+	// can only schedule if registered first
+	if _, err := a.Registry.Lookup(taskName); err != nil {
+		return err
+	}
+
 	a.Schedules = append(a.Schedules, beat.ScheduleEntry{
-		TaskName: name,
-		Cron:     cron,
+		ScheduleName: scheduleName,
+		TaskName:     taskName,
+		Expr:         cronExpr,
+		Args:         args,
 	})
+	return nil
 }
 
 func (a *App) Start() error {
@@ -91,8 +98,9 @@ func (a *App) Start() error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			b := beat.New(a.Schedules, a.Broker, a.Config.Queues) // handle proprity quesues here
+			b := beat.New(a.Schedules, a.Broker, a.Config.Queues, a.Config.TaskRoutes, a.Config.DefaultQueue)
 			if err := b.Start(ctx); err != nil {
+				// raise error here
 				fmt.Printf("beat error: %v\n", err)
 			}
 		}()
