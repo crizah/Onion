@@ -1,7 +1,7 @@
 DB_URL     ?= postgres://postgres:password@localhost:5432/onion_dev?sslmode=disable
 DEV_DB_URL ?= postgres://postgres:password@localhost:5432/onion_dev?sslmode=disable
 MIGRATIONS_DIR = migrations
-BINARY = onion
+BINARY = onion.exe
 
 build:
 	go build -o $(BINARY) main/main.go
