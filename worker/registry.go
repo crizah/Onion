@@ -7,11 +7,12 @@ import (
 )
 
 type RegistryEntry struct {
-	Function interface{} // dk abut the type for this right now
-	Config   task.Config // options/config
+	TaskFunction task.TaskFunction
+	TaskConfig   task.TaskConfig // options/config
 }
 
 type Registry struct {
+	// {"taskName": {function, taskConfig}}
 	mu      sync.RWMutex
 	entries map[string]RegistryEntry
 }

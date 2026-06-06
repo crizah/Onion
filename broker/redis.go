@@ -22,12 +22,12 @@ func New(addr string) *RedisBroker {
 	return &RedisBroker{client: client}
 }
 
-func (r *RedisBroker) Enqueue(ctx context.Context, q queue.Queue, t *task.Task) error {
+func (r *RedisBroker) Enqueue(ctx context.Context, qn string, t *task.Task) error {
 	data, err := json.Marshal(t)
 	if err != nil {
 		return fmt.Errorf("marshal task: %w", err)
 	}
-	return r.client.LPush(ctx, q.Name, data).Err() // change this to have priority, at some point
+	return r.client.LPush(ctx, qn, data).Err() // change this to have priority, at some point
 }
 
 func (r *RedisBroker) Dequeue(ctx context.Context, q queue.Queue) (*task.Task, error) {

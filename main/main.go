@@ -65,16 +65,16 @@ func New(cfg Config) (*App, error) {
 	}, nil
 }
 
-func (a *App) Register(name string, fn interface{}, config ...task.Config) error {
+func (a *App) Register(name string, fn task.TaskFunction, config ...task.TaskConfig) error {
 	// only register the task, dont create one just yet
 
-	cfg := task.Config{MaxRetries: 3} // defaults here
+	cfg := task.TaskConfig{MaxRetries: 3, TimeLimit: 3600} // defaults here
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 	a.Registry.Set(name, worker.RegistryEntry{
-		Function: fn,
-		Config:   cfg,
+		TaskFunction: fn,
+		TaskConfig:   cfg,
 	})
 
 	return nil
@@ -152,10 +152,39 @@ func (a *App) UpdateConfig(cfg Config) error {
 	for name, priority := range cfg.Queues {
 		a.Config.Queues[name] = priority
 	}
+
 	for task, queue := range cfg.TaskRoutes {
 		a.Config.TaskRoutes[task] = queue
 	}
 	return nil // ideally, run a a.validate here but eh
+}
+
+func (a *App) resolveQueue(taskName string) (queue.Queue, error) {
+	name := a.Config.DefaultQueue
+
+	if qn, ok := a.Config.TaskRoutes[taskName]; ok {
+		// TODO: log using default queue when !ok
+		name = qn
+	}
+
+	for _, q := range a.Config.Queues {
+		if q.Name == name {
+			return q, nil
+		}
+	}
+	// no queue matched the task AND no default configured
+	return queue.Queue{}, errors.ErrQueueNotFound
+}
+
+func (a *App) Enqueue(ctx context.Context, taskName string, args map[string]any) error {
+	// create task, resolve queue from app.config.taskroutes, falback to app.config.defaultqueue
+	t := task.New(taskName, args)
+	q, err := a.resolveQueue(taskName)
+	if err != nil {
+		return err
+	}
+	return a.Broker.Enqueue(ctx, q.Name, t)
+
 }
 
 func main() {
@@ -164,7 +193,8 @@ func main() {
 	// app := Onion.New(config) // config has their brokers, queues, task routing etc
 
 	// register a task
-	// app.Register("name", function, args) // registers a task
+	// app.Register("name", function, taskConfig) // registers a task
+	// have an option to update the taskConfig  as well
 
 	// schedule a task (beat)
 	// app.Schedule("name", "cron") // schedule repeated tasks
@@ -175,6 +205,14 @@ func main() {
 	// app.Start() // runs
 
 	// when want to call a task
-	// app.Enqueue(ctx, "send_email", args, goqueue.WithQueue("emails"))
+	// app.Enqueue(ctx, "taskName", args map[string]any)
+
+	// how to define a Taskfunction: // TODO: make this way less restrictive
+	// func sendEmail(ctx context.Context, args map[string]any) error {
+	// 	to := args["to"].(string)
+	// 	subject := args["subject"].(string)
+	// 	// do work
+	// 	return nil
+	// }
 
 }

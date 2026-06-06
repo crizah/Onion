@@ -36,15 +36,15 @@ func (w *Worker) Run(ctx context.Context) {
 
 			entry, err := w.Registry.Lookup(t.Name)
 			if err != nil {
-				// raise ErrTaskNotRegistered here
+				// TODO: raise ErrTaskNotRegistered here
 				continue
 			}
 
-			t.State = task.RUNNING
-			if err := entry.Function(ctx, t.Args); err != nil { // need to make function a type
-				t.State = task.FAILED
+			t.Status = task.RUNNING
+			if err := entry.TaskFunction(ctx, t.Args); err != nil {
+				t.Status = task.FAILED
 			} else {
-				t.State = task.COMPLETED
+				t.Status = task.COMPLETED
 			}
 		}
 	}

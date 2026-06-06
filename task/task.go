@@ -1,6 +1,8 @@
 package task
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 )
 
@@ -14,27 +16,27 @@ const (
 )
 
 type Task struct {
-	Id         uuid.UUID      `json:"id"`
-	Name       string         `json:"string"`
-	Args       map[string]any `json:"args"`
-	State      State          `json:"state"`
-	MaxRetries int            `json:"max_retries"`
+	Id     uuid.UUID      `json:"id"`
+	Status State          `json:"status"`
+	Name   string         `json:"string"`
+	Args   map[string]any `json:"args"` // function args
+	// TaskConfig TaskConfig     `json:"taskConfig"` // already sits in registry
 }
 
-type Config struct {
-	MaxRetries int // defaults to 3
+type TaskFunction func(ctx context.Context, args map[string]any) error
+
+type TaskConfig struct {
+	MaxRetries int
+	TimeLimit  int
+	// othr shit
 }
 
-func New(name string, config ...Config) *Task {
-	maxRetries := 3
-	if len(config) > 0 {
-		maxRetries = config[0].MaxRetries
-	}
+func New(name string, args map[string]any) *Task {
 
 	return &Task{
-		Id:         uuid.New(),
-		Name:       name,
-		State:      PENDING,
-		MaxRetries: maxRetries,
+		Id:     uuid.New(),
+		Name:   name,
+		Status: PENDING,
+		Args:   args,
 	}
 }
