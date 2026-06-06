@@ -40,7 +40,7 @@ func (w *Worker) Run(ctx context.Context) {
 				continue
 			}
 			t.Status = task.RUNNING
-			if err := entry.TaskFunction(ctx, t.Args); err != nil {
+			if _, err := entry.TaskFunction(ctx, t.Args); err != nil {
 				t.Status = task.FAILED
 			} else {
 				t.Status = task.COMPLETED

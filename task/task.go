@@ -23,7 +23,7 @@ type Task struct {
 	// TaskConfig TaskConfig     `json:"taskConfig"` // already sits in registry
 }
 
-type TaskFunction func(ctx context.Context, args map[string]any) error
+type TaskFunction func(ctx context.Context, args map[string]any) (any, error)
 
 type TaskConfig struct {
 	MaxRetries int
