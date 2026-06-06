@@ -29,17 +29,12 @@ func (r *Registry) Set(name string, entry RegistryEntry) {
 	r.entries[name] = entry
 }
 
-func (r *Registry) Lookup(name string) (*RegistryEntry, error) {
-	// lookup task from registry
-
+func (r *Registry) Lookup(name string) (RegistryEntry, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	entry, ok := r.entries[name]
 	if !ok {
-		return &RegistryEntry{}, errors.ErrTaskNotRegistered
-
+		return RegistryEntry{}, errors.ErrTaskNotRegistered
 	}
-
-	return &entry, nil
-
+	return entry, nil
 }

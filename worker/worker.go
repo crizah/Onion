@@ -36,7 +36,6 @@ func (w *Worker) Run(ctx context.Context) {
 
 			entry, err := w.Registry.Lookup(t.Name)
 			if err != nil {
-				// TODO: raise ErrTaskNotRegistered here
 				fmt.Printf("[worker] lookup failed for %q: %v\n", t.Name, err)
 				continue
 			}
