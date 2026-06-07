@@ -11,10 +11,10 @@ import (
 // kept out of task.Task to avoid a second source of truth.
 type TaskRecord struct {
 	*task.Task
-	Queue  string
-	Config task.TaskConfig
-	Output any // output of the function
-	Error  any
+	Queue  string          `json:"queue"`
+	Config task.TaskConfig `json:"config"`
+	Output any             `json:"output"`
+	Error  any             `json:"error"`
 }
 
 type TaskFilter struct {

@@ -59,7 +59,11 @@ func (d *Dashboard) handleTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Dashboard) handleWorkers(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, d.pool.Snapshot())
+	workers := d.pool.Snapshot()
+	writeJSON(w, map[string]any{
+		"count":   len(workers),
+		"workers": workers,
+	})
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

@@ -123,14 +123,18 @@ func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (ListResult, e
 		r.Task = &t
 		var rawArgs, output, errb, config []byte
 		var status string
+		var startedAt, completedAt, retriedAt sql.NullTime
 		if err := rows.Scan(
 			&t.Id, &t.Name, &rawArgs, &output, &t.RetryAttempt, &errb,
 			&status, &r.Queue, &config,
-			&t.CreatedAt, &t.StartedAt, &t.CompletedAt, &t.RetriedAt, &t.DurationMs,
+			&t.CreatedAt, &startedAt, &completedAt, &retriedAt, &t.DurationMs,
 		); err != nil {
 			return ListResult{}, err
 		}
 		t.Status = task.State(status)
+		t.StartedAt = startedAt.Time
+		t.CompletedAt = completedAt.Time
+		t.RetriedAt = retriedAt.Time
 		json.Unmarshal(rawArgs, &t.Args)
 		json.Unmarshal(output, &r.Output)
 		json.Unmarshal(errb, &r.Error)
@@ -184,11 +188,12 @@ func (p *PostgresBackend) Get(ctx context.Context, id string) (*TaskRecord, erro
 	r.Task = &t
 	var args, output, errr, config []byte
 	var status string
+	var startedAt, completedAt, retriedAt sql.NullTime
 
 	err := row.Scan(
 		&t.Id, &t.Name, &args, &output, &t.RetryAttempt, &errr,
 		&status, &r.Queue, &config,
-		&t.CreatedAt, &t.StartedAt, &t.CompletedAt, &t.RetriedAt, &t.DurationMs,
+		&t.CreatedAt, &startedAt, &completedAt, &retriedAt, &t.DurationMs,
 	)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf(errors.ErrTaskNotFound.Error(), id)
@@ -198,6 +203,9 @@ func (p *PostgresBackend) Get(ctx context.Context, id string) (*TaskRecord, erro
 	}
 
 	t.Status = task.State(status)
+	t.StartedAt = startedAt.Time
+	t.CompletedAt = completedAt.Time
+	t.RetriedAt = retriedAt.Time
 	json.Unmarshal(args, &t.Args)
 	json.Unmarshal(output, &r.Output)
 	json.Unmarshal(config, &r.Config)
