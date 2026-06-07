@@ -22,10 +22,13 @@ type Task struct {
 	Name   string         `json:"name"`
 	Args   map[string]any `json:"args"` // function args
 	// TaskConfig TaskConfig     `json:"taskConfig"` // already sits in registry
-	CreatedAt   time.Time `json:"created_at"`
-	StartedAt   time.Time `json:"started_at"`
-	CompletedAt time.Time `json:"completed_at"`
-	DurationMs  int64     `json:"duration_ms"`
+	RetryAttempt int       `json:"retry_attempt"` // max retry
+	Output       any       `json:"output"`        // output of the function
+	CreatedAt    time.Time `json:"created_at"`
+	StartedAt    time.Time `json:"started_at"`
+	CompletedAt  time.Time `json:"completed_at"`
+	RetriedAt    time.Time `json:"retried_at"`
+	DurationMs   int64     `json:"duration_ms"`
 }
 
 type TaskFunction func(ctx context.Context, args map[string]any) (any, error)

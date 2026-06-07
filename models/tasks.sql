@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at   TIMESTAMPTZ,
     started_at   TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
+    retried_at TIMESTAMPTZ
     duration_ms  BIGINT DEFAULT 0
 );
