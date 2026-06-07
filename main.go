@@ -91,6 +91,7 @@ package main
 import (
 	"Onion/app"
 	"Onion/broker"
+	"Onion/errors"
 	"context"
 	"fmt"
 	"os"
@@ -103,11 +104,13 @@ import (
 // ── task functions ────────────────────────────────────────────────────────────
 
 func sendEmail(ctx context.Context, args map[string]any) (any, error) {
+	// should be retried
 	to := args["to"].(string)
 	fmt.Printf("[sendEmail] starting — to: %s\n", to)
 	time.Sleep(3 * time.Second)
 	fmt.Printf("[sendEmail] done — sent to %s\n", to)
-	return map[string]any{"status": "sent", "to": to}, nil
+	// return map[string]any{"status": "sent", "to": to}, nil
+	return nil, errors.ErrRetry
 }
 
 func generateReport(ctx context.Context, args map[string]any) (any, error) {

@@ -7,9 +7,10 @@ CREATE TABLE IF NOT EXISTS tasks (
     output       JSONB,
     config       JSONB,
     error        JSONB,
+    retry_attempt INT DEFAULT 0,
     created_at   TIMESTAMPTZ,
     started_at   TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
-    retried_at TIMESTAMPTZ
+    retried_at TIMESTAMPTZ,
     duration_ms  BIGINT DEFAULT 0
 );
