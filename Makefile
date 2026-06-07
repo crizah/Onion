@@ -3,7 +3,7 @@ MIGRATIONS_DIR  = migrations
 BINARY          = onion.exe
 
 build:
-	go build -o $(BINARY) main/main.go
+	go build -o $(BINARY) main.go
 
 run:
 	./$(BINARY)

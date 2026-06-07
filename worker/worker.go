@@ -3,9 +3,12 @@ package worker
 import (
 	"Onion/backend"
 	"Onion/broker"
+	oerrors "Onion/errors"
 	"Onion/task"
 	"context"
+	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 )
@@ -50,16 +53,35 @@ func (w *Worker) Run(ctx context.Context) {
 
 			output, err := entry.TaskFunction(ctx, t.Args)
 			now := time.Now()
-			t.CompletedAt = now
-			t.DurationMs = now.Sub(t.StartedAt).Milliseconds()
+			// if err == ErrRetry, we retry here
 			if err != nil {
-				t.Status = task.FAILED
-				record.Error = err
+				if errors.Is(err, oerrors.ErrRetry) && t.RetryAttempt < entry.TaskConfig.MaxRetries {
+					t.RetryAttempt++
+					backoff := time.Duration(math.Pow(2, float64(t.RetryAttempt))) * time.Second
+					t.RetriedAt = now.Add(backoff)
+
+					t.Status = task.PENDING
+					// do i need to re add record.task here  for it to get updated??
+					w.Backend.Save(ctx, record) // save RETRY state + retry_at
+					time.AfterFunc(backoff, func() {
+						w.Broker.Enqueue(context.Background(), q.Name, t)
+					})
+					fmt.Printf("[task] retried for %q", t.Name)
+				} else {
+					t.DurationMs = now.Sub(t.StartedAt).Milliseconds()
+					t.CompletedAt = now
+					t.Status = task.FAILED
+					w.Backend.Save(ctx, record)
+				}
 			} else {
+				t.CompletedAt = now
+				t.DurationMs = now.Sub(t.StartedAt).Milliseconds()
 				t.Status = task.COMPLETED
-				record.Output = output
+				t.Output = output
+
 			}
 			w.Backend.Save(ctx, record)
+
 		}
 	}
 }
