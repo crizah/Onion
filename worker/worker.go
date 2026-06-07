@@ -14,10 +14,12 @@ import (
 )
 
 type Worker struct {
+	ID       int
 	Queues   []broker.Queue // wroker can be subscribes to multiple queues
 	Broker   broker.Broker
 	Registry *Registry
 	Backend  backend.Backend
+	Pool     *Pool
 }
 
 func (w *Worker) Run(ctx context.Context) {
@@ -47,6 +49,7 @@ func (w *Worker) Run(ctx context.Context) {
 
 			record := &backend.TaskRecord{Task: t, Queue: q.Name, Config: entry.TaskConfig}
 
+			w.Pool.SetBusy(w.ID, t.Name)
 			t.Status = task.RUNNING
 			t.StartedAt = time.Now()
 			w.Backend.Save(ctx, record)
@@ -81,7 +84,7 @@ func (w *Worker) Run(ctx context.Context) {
 
 			}
 			w.Backend.Save(ctx, record)
-
+			w.Pool.SetIdle(w.ID)
 		}
 	}
 }

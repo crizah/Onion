@@ -143,9 +143,12 @@ func main() {
 	// ── 1. init app ──────────────────────────────────────────────────────────
 	backend_url := os.Getenv("BACKED_URl")
 	broker_addr := os.Getenv("BROKER_URL")
+	dashboard_addr := os.Getenv("DASHBOARD_URL")
 	App, err := app.New(app.Config{
-		BrokerAddr:   broker_addr,
-		BackendURL:   backend_url,
+		BrokerAddr:    broker_addr,
+		BackendURL:    backend_url,
+		DashboardAddr: dashboard_addr,
+
 		Concurrency:  3,
 		DefaultQueue: "default",
 		Queues: []broker.Queue{

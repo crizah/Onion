@@ -7,10 +7,19 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sync"
+	"time"
 )
 
+type statsCache struct {
+	value     Stats
+	expiresAt time.Time
+}
+
 type PostgresBackend struct {
-	db *sql.DB
+	db    *sql.DB
+	mu    sync.Mutex
+	cache *statsCache
 }
 
 func New(connStr string) (*PostgresBackend, error) {
@@ -61,6 +70,106 @@ func (p *PostgresBackend) Save(ctx context.Context, r *TaskRecord) error {
 		r.CreatedAt, r.StartedAt, r.CompletedAt, r.RetriedAt, r.DurationMs,
 	)
 	return err
+}
+
+func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (ListResult, error) {
+	if f.Limit <= 0 {
+		f.Limit = 50
+	}
+	if f.Page <= 0 {
+		f.Page = 1
+	}
+	offset := (f.Page - 1) * f.Limit
+
+	where := " WHERE 1=1"
+	var args []any
+	i := 1
+	if f.Status != "" {
+		where += fmt.Sprintf(" AND status = $%d", i)
+		args = append(args, f.Status)
+		i++
+	}
+	if f.Queue != "" {
+		where += fmt.Sprintf(" AND queue = $%d", i)
+		args = append(args, f.Queue)
+		i++
+	}
+	if f.Search != "" {
+		where += fmt.Sprintf(" AND (name ILIKE $%d OR id::text ILIKE $%d)", i, i)
+		args = append(args, "%"+f.Search+"%")
+		i++
+	}
+
+	var total int
+	if err := p.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks"+where, args...).Scan(&total); err != nil {
+		return ListResult{}, err
+	}
+
+	q := `SELECT id, name, args, output, retry_attempt, error, status, queue, config,
+	             created_at, started_at, completed_at, retried_at, duration_ms
+	      FROM tasks` + where + fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", i, i+1)
+	args = append(args, f.Limit, offset)
+
+	rows, err := p.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return ListResult{}, err
+	}
+	defer rows.Close()
+
+	var records []*TaskRecord
+	for rows.Next() {
+		var t task.Task
+		var r TaskRecord
+		r.Task = &t
+		var rawArgs, output, errb, config []byte
+		var status string
+		if err := rows.Scan(
+			&t.Id, &t.Name, &rawArgs, &output, &t.RetryAttempt, &errb,
+			&status, &r.Queue, &config,
+			&t.CreatedAt, &t.StartedAt, &t.CompletedAt, &t.RetriedAt, &t.DurationMs,
+		); err != nil {
+			return ListResult{}, err
+		}
+		t.Status = task.State(status)
+		json.Unmarshal(rawArgs, &t.Args)
+		json.Unmarshal(output, &r.Output)
+		json.Unmarshal(errb, &r.Error)
+		json.Unmarshal(config, &r.Config)
+		records = append(records, &r)
+	}
+	if records == nil {
+		records = []*TaskRecord{}
+	}
+	return ListResult{Records: records, Total: total, Page: f.Page, Limit: f.Limit}, rows.Err()
+}
+
+func (p *PostgresBackend) Stats(ctx context.Context) (Stats, error) {
+	p.mu.Lock()
+	if p.cache != nil && time.Now().Before(p.cache.expiresAt) {
+		s := p.cache.value
+		p.mu.Unlock()
+		return s, nil
+	}
+	p.mu.Unlock()
+
+	row := p.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*),
+			COUNT(*) FILTER (WHERE status = 'pending'),
+			COUNT(*) FILTER (WHERE status = 'running'),
+			COUNT(*) FILTER (WHERE status = 'completed'),
+			COUNT(*) FILTER (WHERE status = 'failed')
+		FROM tasks
+	`)
+	var s Stats
+	if err := row.Scan(&s.Total, &s.Pending, &s.Running, &s.Completed, &s.Failed); err != nil {
+		return Stats{}, err
+	}
+
+	p.mu.Lock()
+	p.cache = &statsCache{value: s, expiresAt: time.Now().Add(5 * time.Second)}
+	p.mu.Unlock()
+	return s, nil
 }
 
 func (p *PostgresBackend) Get(ctx context.Context, id string) (*TaskRecord, error) {
