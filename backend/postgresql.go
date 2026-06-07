@@ -23,6 +23,7 @@ type PostgresBackend struct {
 }
 
 func New(connStr string) (*PostgresBackend, error) {
+	// create and apply migrations here
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: open: %w", err)
@@ -31,6 +32,33 @@ func New(connStr string) (*PostgresBackend, error) {
 		return nil, fmt.Errorf("postgres: ping: %w", err)
 	}
 	return &PostgresBackend{db: db}, nil
+}
+func (p *PostgresBackend) migrate() error {
+	_, err := p.db.Exec(`
+        CREATE TABLE IF NOT EXISTS tasks (
+		id            UUID PRIMARY KEY,
+		name          TEXT NOT NULL,
+		status        TEXT NOT NULL,
+		queue         TEXT NOT NULL,
+		args          JSONB,
+		output        JSONB,
+		config        JSONB,
+		error         JSONB,
+		retry_attempt INT DEFAULT 0,
+		created_at    TIMESTAMPTZ,
+		started_at    TIMESTAMPTZ,
+		completed_at  TIMESTAMPTZ,
+		retried_at    TIMESTAMPTZ,
+		duration_ms   BIGINT DEFAULT 0
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_tasks_status     ON tasks (status);
+		CREATE INDEX IF NOT EXISTS idx_tasks_queue      ON tasks (queue);
+		CREATE INDEX IF NOT EXISTS idx_tasks_name       ON tasks (name);
+		CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks (created_at DESC);
+        )
+    `)
+	return err
 }
 
 func (p *PostgresBackend) Save(ctx context.Context, r *TaskRecord) error {
