@@ -4,6 +4,7 @@ import (
 	"Onion/backend"
 	"Onion/beat"
 	"Onion/broker"
+	"Onion/dashboard"
 	"Onion/errors"
 	"Onion/task"
 	"Onion/worker"
@@ -19,18 +20,20 @@ type App struct {
 	Broker    broker.Broker
 	Backend   backend.Backend // dk wat to do with this for rn
 	Registry  *worker.Registry
+	Pool      *worker.Pool
 	running   bool
 	Schedules []beat.ScheduleEntry
 	Config    Config
 }
 
 type Config struct {
-	BrokerAddr   string
-	BackendURL   string // dk wat to do with this for rn
-	Concurrency  int
-	Queues       []broker.Queue
-	TaskRoutes   map[string]string // user can update as {"taskName", "queuename"}
-	DefaultQueue string            // default queue for user to define
+	BrokerAddr    string
+	BackendURL    string // dk wat to do with this for rn
+	Concurrency   int
+	Queues        []broker.Queue
+	TaskRoutes    map[string]string // user can update as {"taskName", "queuename"}
+	DefaultQueue  string            // default queue for user to define
+	DashboardAddr string            // e.g. ":8080", empty disables dashboard
 }
 
 func New(cfg Config) (*App, error) {
@@ -72,6 +75,7 @@ func New(cfg Config) (*App, error) {
 		Broker:   br,
 		Backend:  ba,
 		Registry: r,
+		Pool:     worker.NewPool(),
 		Config:   cfg,
 	}, nil
 }
@@ -125,20 +129,33 @@ func (a *App) Start() error {
 
 	// 1. start worker pool
 	for i := 0; i < concurrency; i++ {
+		a.Pool.Register(i)
 		wg.Add(1)
-		go func() {
+		go func(id int) {
 			defer wg.Done()
 			w := &worker.Worker{
+				ID:       id,
 				Queues:   a.Config.Queues,
 				Broker:   a.Broker,
 				Registry: a.Registry,
 				Backend:  a.Backend,
+				Pool:     a.Pool,
 			}
 			w.Run(ctx)
+		}(i)
+	}
+
+	// 2. start dashboard
+	if a.Config.DashboardAddr != "" {
+		d := dashboard.New(a.Backend, a.Pool)
+		go func() {
+			if err := d.Start(a.Config.DashboardAddr); err != nil {
+				fmt.Printf("dashboard error: %v\n", err)
+			}
 		}()
 	}
 
-	// 2. start beat if schedules exist
+	// 3. start beat if schedules exist
 	if len(a.Schedules) > 0 {
 		wg.Add(1)
 		go func() {
@@ -151,7 +168,7 @@ func (a *App) Start() error {
 		}()
 	}
 
-	// 3. block until signal
+	// 4. block until signal
 	wg.Wait()
 	return nil
 }

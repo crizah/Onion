@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onion</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<style>
+  :root { --bs-link-color: #6d28d9; --bs-link-hover-color: #5b21b6; }
+  .navbar-brand { font-weight: 600; }
+  .nav-link.active { color: #6d28d9 !important; border-bottom: 2px solid #6d28d9; }
+  .nav-link { color: #444 !important; }
+  .nav-link:hover { color: #6d28d9 !important; }
+  .badge-SUCCESS   { background-color: #198754; }
+  .badge-FAILURE   { background-color: #dc3545; }
+  .badge-STARTED   { background-color: #0d6efd; }
+  .badge-PENDING   { background-color: #6c757d; }
+  .badge-RETRY     { background-color: #6d28d9; }
+  .badge-RECEIVED  { background-color: #0dcaf0; color:#000; }
+  .badge-REVOKED   { background-color: #fd7e14; }
+  a { color: #6d28d9; }
+  a:hover { color: #5b21b6; }
+  .table > :not(caption) > * > * { padding: .45rem .6rem; font-size: .875rem; }
+  thead th { background: #f8f9fa; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: #666; }
+  .form-control, .form-select { font-size: .875rem; }
+  .page-link { color: #6d28d9; }
+  .page-item.active .page-link { background-color: #6d28d9; border-color: #6d28d9; }
+  .dataTables-info { font-size: .8rem; color: #666; }
+</style>
+</head>
+<body class="m-2">
+
+<nav class="navbar navbar-light bg-light border-bottom mb-3">
+  <div class="container-fluid">
+    <a class="navbar-brand text-dark me-4" href="#">
+      <span style="color:#6d28d9">&#9898;</span> Onion
+    </a>
+    <ul class="navbar-nav flex-row me-auto" style="gap:10px">
+      <li class="nav-item">
+        <a class="nav-link active" id="tab-tasks" href="#" onclick="showTab('tasks',this);return false">Tasks</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="tab-workers" href="#" onclick="showTab('workers',this);return false">Workers</a>
+      </li>
+    </ul>
+    <span class="navbar-text text-muted" style="font-size:.8rem" id="refresh-ts"></span>
+  </div>
+</nav>
+
+<div class="container-fluid">
+
+  <!-- ── tasks tab ── -->
+  <div id="page-tasks">
+
+    <!-- top controls row: limit selector left, filters right — exactly like Flower -->
+    <div class="row g-2 mb-2 align-items-end">
+      <div class="col-auto d-flex align-items-center gap-2">
+        <label class="mb-0" style="font-size:.8rem;white-space:nowrap">Show</label>
+        <select class="form-select form-select-sm" style="width:80px" id="f-limit" onchange="pg=1;renderTasks()">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>
+        <span style="font-size:.8rem">entries</span>
+      </div>
+      <div class="col-auto">
+        <select class="form-select form-select-sm" id="f-state" onchange="pg=1;renderTasks()">
+          <option value="">All states</option>
+          <option value="pending">PENDING</option>
+          <option value="running">STARTED</option>
+          <option value="completed">SUCCESS</option>
+          <option value="failed">FAILURE</option>
+          <option value="retry">RETRY</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <select class="form-select form-select-sm" id="f-queue" onchange="pg=1;renderTasks()">
+          <option value="">All queues</option>
+        </select>
+      </div>
+      <div class="col-auto ms-auto d-flex align-items-center gap-2">
+        <label class="mb-0" style="font-size:.8rem">Search:</label>
+        <input class="form-control form-control-sm" style="width:200px" type="text" id="f-search" placeholder="" oninput="pg=1;renderTasks()">
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped table-hover w-100" id="tasks-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>UUID</th>
+            <th class="text-center">State</th>
+            <th>Queue</th>
+            <th class="text-center">Retries</th>
+            <th>Args</th>
+            <th>Result</th>
+            <th class="text-center">Started</th>
+            <th class="text-center">Runtime</th>
+          </tr>
+        </thead>
+        <tbody id="tasks-body">
+          <tr><td colspan="9" class="text-center text-muted py-4">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- bottom row: info left, pagination right — exactly like DataTables/Flower -->
+    <div class="d-flex justify-content-between align-items-center mt-2">
+      <div class="dataTables-info" id="task-count"></div>
+      <nav aria-label="pagination">
+        <ul class="pagination pagination-sm mb-0" id="pager"></ul>
+      </nav>
+    </div>
+
+  </div>
+
+  <!-- ── workers tab ── -->
+  <div id="page-workers" style="display:none">
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped table-hover w-100">
+        <thead>
+          <tr>
+            <th>Worker</th>
+            <th class="text-center">Status</th>
+            <th class="text-center">Active</th>
+            <th class="text-center">Processed</th>
+            <th>Queues</th>
+          </tr>
+        </thead>
+        <tbody id="workers-body">
+          <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  let allTasks = [];
+  let knownQueues = new Set();
+  let pg = 1;
+
+  function getLimit() {
+    return parseInt(document.getElementById('f-limit').value, 10);
+  }
+
+  function showTab(name, el) {
+    ['tasks','workers'].forEach(t => {
+      document.getElementById('page-'+t).style.display = t===name ? '' : 'none';
+      document.getElementById('tab-'+t).classList.toggle('active', t===name);
+    });
+  }
+
+  function stateBadge(s) {
+    const map = {
+      SUCCESS:'SUCCESS', FAILURE:'FAILURE', STARTED:'STARTED',
+      PENDING:'PENDING', RETRY:'RETRY', completed:'SUCCESS',
+      failed:'FAILURE', running:'STARTED', pending:'PENDING', retry:'RETRY'
+    };
+    const cls = map[s] || 'PENDING';
+    const label = map[s] || s;
+    return `<span class="badge badge-${cls}">${label}</span>`;
+  }
+
+  function fmtTime(ts) {
+    if (!ts || ts.startsWith('0001')) return '';
+    return new Date(ts).toLocaleString('en-GB',{
+      day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'
+    });
+  }
+
+  function fmtDuration(ms) {
+    if (!ms) return '';
+    if (ms < 1000) return ms + ' ms';
+    return (ms/1000).toFixed(2) + ' sec';
+  }
+
+  function shortId(id) {
+    if (!id) return '';
+    return `<span title="${id}" style="font-family:monospace;font-size:.8rem;color:#666">${id.slice(0,8)}…</span>`;
+  }
+
+  function renderTasks() {
+    const search  = document.getElementById('f-search').value.toLowerCase();
+    const state   = document.getElementById('f-state').value.toLowerCase();
+    const queue   = document.getElementById('f-queue').value;
+    const perPage = getLimit();
+
+    let filtered = allTasks.filter(t => {
+      const matchS = !search || (t.name||'').toLowerCase().includes(search) || (t.id||'').toLowerCase().includes(search);
+      const matchT = !state  || (t.status||'').toLowerCase() === state;
+      const matchQ = !queue  || t.queue === queue;
+      return matchS && matchT && matchQ;
+    });
+
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total/perPage));
+    pg = Math.min(pg, pages);
+    const slice = filtered.slice((pg-1)*perPage, pg*perPage);
+
+    const start = total ? (pg-1)*perPage+1 : 0;
+    const end   = Math.min(pg*perPage, total);
+    document.getElementById('task-count').textContent =
+      `Showing ${start} to ${end} of ${total} entries`;
+
+    const tbody = document.getElementById('tasks-body');
+    if (!slice.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No tasks found</td></tr>';
+    } else {
+      tbody.innerHTML = slice.map(t => `
+        <tr>
+          <td>${t.name||''}</td>
+          <td>${shortId(t.id)}</td>
+          <td class="text-center">${stateBadge(t.status||'')}</td>
+          <td>${t.queue ? `<span class="badge" style="background:#6d28d9;font-weight:400">${t.queue}</span>` : ''}</td>
+          <td class="text-center">${t.retry_attempt||0}</td>
+          <td style="font-family:monospace;font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.args ? JSON.stringify(t.args) : ''}</td>
+          <td style="font-family:monospace;font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.output ? JSON.stringify(t.output) : ''}</td>
+          <td class="text-center" style="font-size:.8rem;white-space:nowrap">${fmtTime(t.started_at)}</td>
+          <td class="text-center" style="white-space:nowrap">${fmtDuration(t.duration_ms)}</td>
+        </tr>`).join('');
+    }
+
+    // pagination — same structure as DataTables which Flower uses
+    const pager = document.getElementById('pager');
+    pager.innerHTML = '';
+    if (pages <= 1) return;
+
+    const addBtn = (label, p, disabled, active) => {
+      const li = document.createElement('li');
+      li.className = 'page-item' + (disabled?' disabled':'') + (active?' active':'');
+      const a = document.createElement('a');
+      a.className = 'page-link'; a.href = '#';
+      a.innerHTML = label;
+      a.onclick = e => { e.preventDefault(); if(!disabled){pg=p;renderTasks();} };
+      li.appendChild(a); pager.appendChild(li);
+    };
+
+    addBtn('Previous', pg-1, pg===1, false);
+    for (let i = Math.max(1,pg-2); i <= Math.min(pages,pg+2); i++) {
+      addBtn(i, i, false, i===pg);
+    }
+    addBtn('Next', pg+1, pg===pages, false);
+  }
+
+  async function loadTasks() {
+    try {
+      const data = await fetch('/api/tasks?limit=2000').then(r=>r.json());
+      allTasks = data.records || data || [];
+      allTasks.forEach(t => { if(t.queue) knownQueues.add(t.queue); });
+      const sel = document.getElementById('f-queue');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">All queues</option>';
+      [...knownQueues].sort().forEach(q => {
+        const o = document.createElement('option');
+        o.value=q; o.textContent=q; if(q===cur) o.selected=true;
+        sel.appendChild(o);
+      });
+      renderTasks();
+    } catch(e) {
+      document.getElementById('tasks-body').innerHTML =
+        `<tr><td colspan="9" class="text-center text-danger py-4">Failed to load: ${e.message}</td></tr>`;
+    }
+  }
+
+  async function loadWorkers() {
+    try {
+      const w = await fetch('/api/workers').then(r=>r.json());
+      const count = w.count || 0;
+      const tbody = document.getElementById('workers-body');
+      if (!count) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No active workers</td></tr>';
+        return;
+      }
+      tbody.innerHTML = Array.from({length:count},(_,i)=>`
+        <tr>
+          <td>worker-${i+1}</td>
+          <td class="text-center"><span class="badge bg-success">Online</span></td>
+          <td class="text-center">—</td>
+          <td class="text-center">—</td>
+          <td>—</td>
+        </tr>`).join('');
+    } catch(e) {}
+  }
+
+  async function refresh() {
+    await Promise.all([loadTasks(), loadWorkers()]);
+    document.getElementById('refresh-ts').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+  }
+
+  refresh();
+  setInterval(refresh, 3000);
+</script>
+</body>
+</html>
