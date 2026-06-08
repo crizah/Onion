@@ -1,11 +1,12 @@
 package beat
 
 import (
-	"Onion/backend"
-	"Onion/broker"
-	"Onion/task"
 	"context"
 	"fmt"
+
+	"github.com/crizah/Onion/backend"
+	"github.com/crizah/Onion/broker"
+	"github.com/crizah/Onion/task"
 
 	"github.com/robfig/cron/v3"
 )

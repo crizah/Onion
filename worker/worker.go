@@ -1,16 +1,18 @@
 package worker
 
 import (
-	"Onion/backend"
-	"Onion/broker"
-	oerrors "Onion/errors"
-	"Onion/task"
 	"context"
 	"errors"
 	"fmt"
 	"math"
 	"sort"
 	"time"
+
+	"github.com/crizah/Onion/task"
+
+	"github.com/crizah/Onion/backend"
+	"github.com/crizah/Onion/broker"
+	oerrors "github.com/crizah/Onion/errors"
 )
 
 type Worker struct {

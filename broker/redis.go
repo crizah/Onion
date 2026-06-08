@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"Onion/task"
+	"github.com/crizah/Onion/task"
 
 	"github.com/redis/go-redis/v9"
 )

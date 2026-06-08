@@ -1,9 +1,10 @@
 package worker
 
 import (
-	"Onion/errors"
-	"Onion/task"
 	"sync"
+
+	"github.com/crizah/Onion/errors"
+	"github.com/crizah/Onion/task"
 )
 
 type RegistryEntry struct {

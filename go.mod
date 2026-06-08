@@ -1,4 +1,4 @@
-module Onion
+module github.com/crizah/Onion
 
 go 1.25.5
 

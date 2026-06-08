@@ -89,13 +89,14 @@
 package main
 
 import (
-	"Onion/app"
-	"Onion/broker"
-	"Onion/errors"
 	"context"
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/crizah/Onion/app"
+	"github.com/crizah/Onion/broker"
+	"github.com/crizah/Onion/errors"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq" // this registers the "postgres" driver

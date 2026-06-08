@@ -1,11 +1,13 @@
 package dashboard
 
 import (
-	"Onion/backend"
-	"Onion/worker"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/crizah/Onion/backend"
+	"github.com/crizah/Onion/worker"
 )
 
 type Dashboard struct {
@@ -24,7 +26,10 @@ func New(b backend.Backend, p *worker.Pool) *Dashboard {
 }
 
 func (d *Dashboard) Start(addr string) error {
-	return http.ListenAndServe(addr, d.mux)
+	fmt.Printf("dashboard starting on %s\n", addr)
+	err := http.ListenAndServe(addr, d.mux)
+	fmt.Printf("dashboard exited: %v\n", err)
+	return err
 }
 
 func (d *Dashboard) serveUI(w http.ResponseWriter, r *http.Request) {

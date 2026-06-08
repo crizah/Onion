@@ -1,19 +1,20 @@
 package app
 
 import (
-	"Onion/backend"
-	"Onion/beat"
-	"Onion/broker"
-	"Onion/dashboard"
-	"Onion/errors"
-	"Onion/task"
-	"Onion/worker"
 	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/crizah/Onion/backend"
+	"github.com/crizah/Onion/beat"
+	"github.com/crizah/Onion/broker"
+	"github.com/crizah/Onion/dashboard"
+	"github.com/crizah/Onion/errors"
+	"github.com/crizah/Onion/task"
+	"github.com/crizah/Onion/worker"
 )
 
 type App struct {
