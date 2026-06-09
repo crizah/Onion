@@ -43,7 +43,7 @@ func New(connStr string) (*PostgresBackend, error) {
 
 func (p *PostgresBackend) migrate() error {
 	statements := []string{
-		`CREATE TABLE IF NOT EXISTS tasks (
+		`CREATE TABLE IF NOT EXISTS onion_tasks (
             id            UUID PRIMARY KEY,
             name          TEXT NOT NULL,
             status        TEXT NOT NULL,
@@ -59,10 +59,10 @@ func (p *PostgresBackend) migrate() error {
             retried_at    TIMESTAMPTZ,
             duration_ms   BIGINT DEFAULT 0
         )`,
-		`CREATE INDEX IF NOT EXISTS idx_tasks_status     ON tasks (status)`,
-		`CREATE INDEX IF NOT EXISTS idx_tasks_queue      ON tasks (queue)`,
-		`CREATE INDEX IF NOT EXISTS idx_tasks_name       ON tasks (name)`,
-		`CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks (created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_onion_tasks_status     ON onion_tasks (status)`,
+		`CREATE INDEX IF NOT EXISTS idx_onion_tasks_queue      ON onion_tasks (queue)`,
+		`CREATE INDEX IF NOT EXISTS idx_onion_tasks_name       ON onion_tasks (name)`,
+		`CREATE INDEX IF NOT EXISTS idx_onion_tasks_created_at ON onion_tasks (created_at DESC)`,
 	}
 	for _, s := range statements {
 		if _, err := p.db.Exec(s); err != nil {
