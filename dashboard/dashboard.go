@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,6 +10,9 @@ import (
 	"github.com/crizah/Onion/backend"
 	"github.com/crizah/Onion/worker"
 )
+
+//go:embed index.html
+var indexHTML []byte
 
 type Dashboard struct {
 	backend backend.Backend
@@ -33,7 +37,8 @@ func (d *Dashboard) Start(addr string) error {
 }
 
 func (d *Dashboard) serveUI(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "dashboard/index.html")
+    w.Header().Set("Content-Type", "text/html")
+    w.Write(indexHTML)
 }
 
 func (d *Dashboard) handleStats(w http.ResponseWriter, r *http.Request) {
