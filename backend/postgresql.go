@@ -92,17 +92,17 @@ func (p *PostgresBackend) Save(ctx context.Context, r *TaskRecord) error {
 	}
 
 	_, err = p.db.ExecContext(ctx, `
-        INSERT INTO tasks (id, name, args, output, retry_attempt, error, status, queue, config, created_at, started_at, completed_at, retried_at, duration_ms)
+        INSERT INTO onion_tasks (id, name, args, output, retry_attempt, error, status, queue, config, created_at, started_at, completed_at, retried_at, duration_ms)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
         ON CONFLICT (id) DO UPDATE SET
             status       = EXCLUDED.status,
-            output       = CASE WHEN EXCLUDED.output != 'null'::jsonb THEN EXCLUDED.output ELSE tasks.output END,
-			retry_attempt = CASE WHEN EXCLUDED.retry_attempt != 0 THEN EXCLUDED.retry_attempt ELSE tasks.retry_attempt END,
-			error        = CASE WHEN EXCLUDED.error != 'null'::jsonb THEN EXCLUDED.error ELSE tasks.error END,
-            started_at   = CASE WHEN EXCLUDED.started_at != '0001-01-01' THEN EXCLUDED.started_at ELSE tasks.started_at END,
-            completed_at = CASE WHEN EXCLUDED.completed_at != '0001-01-01' THEN EXCLUDED.completed_at ELSE tasks.completed_at END,
-			retried_at   = CASE WHEN EXCLUDED.retried_at != '0001-01-01' THEN EXCLUDED.retried_at ELSE tasks.retried_at END,
-            duration_ms  = CASE WHEN EXCLUDED.duration_ms != 0 THEN EXCLUDED.duration_ms ELSE tasks.duration_ms END
+            output       = CASE WHEN EXCLUDED.output != 'null'::jsonb THEN EXCLUDED.output ELSE onion_tasks.output END,
+			retry_attempt = CASE WHEN EXCLUDED.retry_attempt != 0 THEN EXCLUDED.retry_attempt ELSE onion_tasks.retry_attempt END,
+			error        = CASE WHEN EXCLUDED.error != 'null'::jsonb THEN EXCLUDED.error ELSE onion_tasks.error END,
+            started_at   = CASE WHEN EXCLUDED.started_at != '0001-01-01' THEN EXCLUDED.started_at ELSE onion_tasks.started_at END,
+            completed_at = CASE WHEN EXCLUDED.completed_at != '0001-01-01' THEN EXCLUDED.completed_at ELSE onion_tasks.completed_at END,
+			retried_at   = CASE WHEN EXCLUDED.retried_at != '0001-01-01' THEN EXCLUDED.retried_at ELSE onion_tasks.retried_at END,
+            duration_ms  = CASE WHEN EXCLUDED.duration_ms != 0 THEN EXCLUDED.duration_ms ELSE onion_tasks.duration_ms END
     `,
 		r.Id, r.Name, args, output, r.RetryAttempt, errJsonB,
 		string(r.Status), r.Queue, config,
@@ -140,13 +140,13 @@ func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (ListResult, e
 	}
 
 	var total int
-	if err := p.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks"+where, args...).Scan(&total); err != nil {
+	if err := p.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM onion_tasks"+where, args...).Scan(&total); err != nil {
 		return ListResult{}, err
 	}
 
 	q := `SELECT id, name, args, output, retry_attempt, error, status, queue, config,
 	             created_at, started_at, completed_at, retried_at, duration_ms
-	      FROM tasks` + where + fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", i, i+1)
+	      FROM onion_tasks` + where + fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", i, i+1)
 	args = append(args, f.Limit, offset)
 
 	rows, err := p.db.QueryContext(ctx, q, args...)
@@ -202,7 +202,7 @@ func (p *PostgresBackend) Stats(ctx context.Context) (Stats, error) {
 			COUNT(*) FILTER (WHERE status = 'running'),
 			COUNT(*) FILTER (WHERE status = 'completed'),
 			COUNT(*) FILTER (WHERE status = 'failed')
-		FROM tasks
+		FROM onion_tasks
 	`)
 	var s Stats
 	if err := row.Scan(&s.Total, &s.Pending, &s.Running, &s.Completed, &s.Failed); err != nil {
@@ -219,7 +219,7 @@ func (p *PostgresBackend) Get(ctx context.Context, id string) (*TaskRecord, erro
 	// not used
 	row := p.db.QueryRowContext(ctx, `
         SELECT id, name, args, output, retry_attempt, error, status, queue, config, created_at, started_at, completed_at, retried_at, duration_ms
-        FROM tasks WHERE id = $1
+        FROM onion_tasks WHERE id = $1
     `, id)
 
 	var t task.Task
