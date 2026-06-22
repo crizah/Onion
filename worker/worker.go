@@ -83,7 +83,7 @@ func (w *Worker) Run(ctx context.Context) {
 				t.DurationMs = now.Sub(t.StartedAt).Milliseconds()
 				t.Status = task.COMPLETED
 				t.Output = output
-				record.Ouput = output 
+				record.Output = output 
 
 			}
 			w.Backend.Save(ctx, record)
