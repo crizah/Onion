@@ -66,7 +66,6 @@ func (w *Worker) Run(ctx context.Context) {
 					t.RetriedAt = now.Add(backoff)
 
 					t.Status = task.PENDING
-					// do i need to re add record.task here  for it to get updated??
 					w.Backend.Save(ctx, record) // save RETRY state + retry_at
 					time.AfterFunc(backoff, func() {
 						w.Broker.Enqueue(context.Background(), q.Name, t)
@@ -76,6 +75,7 @@ func (w *Worker) Run(ctx context.Context) {
 					t.DurationMs = now.Sub(t.StartedAt).Milliseconds()
 					t.CompletedAt = now
 					t.Status = task.FAILED
+					t.Error = err
 					w.Backend.Save(ctx, record)
 				}
 			} else {
