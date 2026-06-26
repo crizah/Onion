@@ -97,12 +97,13 @@
             <th class="text-center">Retries</th>
             <th>Args</th>
             <th>Result</th>
+            <th>Error</th>
             <th class="text-center">Started</th>
             <th class="text-center">Runtime</th>
           </tr>
         </thead>
         <tbody id="tasks-body">
-          <tr><td colspan="9" class="text-center text-muted py-4">Loading…</td></tr>
+          <tr><td colspan="10" class="text-center text-muted py-4">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -210,17 +211,22 @@
 
     const tbody = document.getElementById('tasks-body');
     if (!slice.length) {
-      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No tasks found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No tasks found</td></tr>';
     } else {
+      const truncCell = (val, color) => {
+        const s = val ? JSON.stringify(val) : '';
+        return `<td style="font-family:monospace;font-size:.8rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${color?';color:'+color:''}" title="${s.replace(/"/g,'&quot;')}">${s}</td>`;
+      };
       tbody.innerHTML = slice.map(t => `
         <tr>
-          <td>${t.name||''}</td>
+          <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(t.name||'').replace(/"/g,'&quot;')}">${t.name||''}</td>
           <td>${shortId(t.id)}</td>
           <td class="text-center">${stateBadge(t.status||'')}</td>
           <td>${t.queue ? `<span class="badge" style="background:#6d28d9;font-weight:400">${t.queue}</span>` : ''}</td>
           <td class="text-center">${t.retry_attempt||0}</td>
-          <td style="font-family:monospace;font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.args ? JSON.stringify(t.args) : ''}</td>
-          <td style="font-family:monospace;font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.output ? JSON.stringify(t.output) : ''}</td>
+          ${truncCell(t.args)}
+          ${truncCell(t.output)}
+          ${truncCell(t.error, t.error ? '#dc3545' : null)}
           <td class="text-center" style="font-size:.8rem;white-space:nowrap">${fmtTime(t.started_at)}</td>
           <td class="text-center" style="white-space:nowrap">${fmtDuration(t.duration_ms)}</td>
         </tr>`).join('');
@@ -264,7 +270,7 @@
       renderTasks();
     } catch(e) {
       document.getElementById('tasks-body').innerHTML =
-        `<tr><td colspan="9" class="text-center text-danger py-4">Failed to load: ${e.message}</td></tr>`;
+        `<tr><td colspan="10" class="text-center text-danger py-4">Failed to load: ${e.message}</td></tr>`;
     }
   }
 

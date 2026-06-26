@@ -247,6 +247,7 @@ func (p *PostgresBackend) Get(ctx context.Context, id string) (*TaskRecord, erro
 	t.RetriedAt = retriedAt.Time
 	json.Unmarshal(args, &t.Args)
 	json.Unmarshal(output, &r.Output)
+	json.Unmarshal(errr, &r.Error)
 	json.Unmarshal(config, &r.Config)
 	return &r, nil
 }
