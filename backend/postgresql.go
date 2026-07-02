@@ -63,6 +63,11 @@ func (p *PostgresBackend) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_onion_tasks_queue      ON onion_tasks (queue)`,
 		`CREATE INDEX IF NOT EXISTS idx_onion_tasks_name       ON onion_tasks (name)`,
 		`CREATE INDEX IF NOT EXISTS idx_onion_tasks_created_at ON onion_tasks (created_at DESC)`,
+		// dashboard now filters by status/queue AND sorts by created_at on every request
+		// (previously a one-off unfiltered pull) — composite indexes let Postgres satisfy
+		// the WHERE + ORDER BY in a single index scan instead of filter-then-sort.
+		`CREATE INDEX IF NOT EXISTS idx_onion_tasks_status_created_at ON onion_tasks (status, created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_onion_tasks_queue_created_at  ON onion_tasks (queue, created_at DESC)`,
 	}
 	for _, s := range statements {
 		if _, err := p.db.Exec(s); err != nil {

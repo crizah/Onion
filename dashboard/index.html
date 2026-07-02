@@ -56,7 +56,7 @@
     <div class="row g-2 mb-2 align-items-end">
       <div class="col-auto d-flex align-items-center gap-2">
         <label class="mb-0" style="font-size:.8rem;white-space:nowrap">Show</label>
-        <select class="form-select form-select-sm" style="width:80px" id="f-limit" onchange="pg=1;renderTasks()">
+        <select class="form-select form-select-sm" style="width:80px" id="f-limit" onchange="pg=1;loadTasks()">
           <option value="10">10</option>
           <option value="25">25</option>
           <option value="50" selected>50</option>
@@ -66,7 +66,7 @@
         <span style="font-size:.8rem">entries</span>
       </div>
       <div class="col-auto">
-        <select class="form-select form-select-sm" id="f-state" onchange="pg=1;renderTasks()">
+        <select class="form-select form-select-sm" id="f-state" onchange="pg=1;loadTasks()">
           <option value="">All states</option>
           <option value="pending">PENDING</option>
           <option value="running">STARTED</option>
@@ -76,13 +76,13 @@
         </select>
       </div>
       <div class="col-auto">
-        <select class="form-select form-select-sm" id="f-queue" onchange="pg=1;renderTasks()">
+        <select class="form-select form-select-sm" id="f-queue" onchange="pg=1;loadTasks()">
           <option value="">All queues</option>
         </select>
       </div>
       <div class="col-auto ms-auto d-flex align-items-center gap-2">
         <label class="mb-0" style="font-size:.8rem">Search:</label>
-        <input class="form-control form-control-sm" style="width:200px" type="text" id="f-search" placeholder="" oninput="pg=1;renderTasks()">
+        <input class="form-control form-control-sm" style="width:200px" type="text" id="f-search" placeholder="" oninput="pg=1;debouncedLoadTasks()">
       </div>
     </div>
 
@@ -142,9 +142,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  let allTasks = [];
   let knownQueues = new Set();
   let pg = 1;
+  let searchDebounce = null;
 
   function getLimit() {
     return parseInt(document.getElementById('f-limit').value, 10);
@@ -186,38 +186,24 @@
     return `<span title="${id}" style="font-family:monospace;font-size:.8rem;color:#666">${id.slice(0,8)}…</span>`;
   }
 
-  function renderTasks() {
-    const search  = document.getElementById('f-search').value.toLowerCase();
-    const state   = document.getElementById('f-state').value.toLowerCase();
-    const queue   = document.getElementById('f-queue').value;
-    const perPage = getLimit();
-
-    let filtered = allTasks.filter(t => {
-      const matchS = !search || (t.name||'').toLowerCase().includes(search) || (t.id||'').toLowerCase().includes(search);
-      const matchT = !state  || (t.status||'').toLowerCase() === state;
-      const matchQ = !queue  || t.queue === queue;
-      return matchS && matchT && matchQ;
-    });
-
-    const total = filtered.length;
+  function renderTasks(records, total, perPage) {
     const pages = Math.max(1, Math.ceil(total/perPage));
     pg = Math.min(pg, pages);
-    const slice = filtered.slice((pg-1)*perPage, pg*perPage);
 
     const start = total ? (pg-1)*perPage+1 : 0;
-    const end   = Math.min(pg*perPage, total);
+    const end   = Math.min((pg-1)*perPage + records.length, total);
     document.getElementById('task-count').textContent =
       `Showing ${start} to ${end} of ${total} entries`;
 
     const tbody = document.getElementById('tasks-body');
-    if (!slice.length) {
+    if (!records.length) {
       tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No tasks found</td></tr>';
     } else {
       const truncCell = (val, color) => {
         const s = val ? JSON.stringify(val) : '';
         return `<td style="font-family:monospace;font-size:.8rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${color?';color:'+color:''}" title="${s.replace(/"/g,'&quot;')}">${s}</td>`;
       };
-      tbody.innerHTML = slice.map(t => `
+      tbody.innerHTML = records.map(t => `
         <tr>
           <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(t.name||'').replace(/"/g,'&quot;')}">${t.name||''}</td>
           <td>${shortId(t.id)}</td>
@@ -243,7 +229,7 @@
       const a = document.createElement('a');
       a.className = 'page-link'; a.href = '#';
       a.innerHTML = label;
-      a.onclick = e => { e.preventDefault(); if(!disabled){pg=p;renderTasks();} };
+      a.onclick = e => { e.preventDefault(); if(!disabled){pg=p;loadTasks();} };
       li.appendChild(a); pager.appendChild(li);
     };
 
@@ -254,11 +240,27 @@
     addBtn('Next', pg+1, pg===pages, false);
   }
 
+  function debouncedLoadTasks() {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(loadTasks, 300);
+  }
+
   async function loadTasks() {
+    const perPage = getLimit();
+    const params = new URLSearchParams({ page: pg, limit: perPage });
+    const search = document.getElementById('f-search').value;
+    const state  = document.getElementById('f-state').value;
+    const queue  = document.getElementById('f-queue').value;
+    if (search) params.set('search', search);
+    if (state)  params.set('status', state);
+    if (queue)  params.set('queue', queue);
+
     try {
-      const data = await fetch('/api/tasks?limit=2000').then(r=>r.json());
-      allTasks = data.records || data || [];
-      allTasks.forEach(t => { if(t.queue) knownQueues.add(t.queue); });
+      const data = await fetch('/api/tasks?' + params.toString()).then(r=>r.json());
+      const records = data.records || [];
+      const total = data.total || 0;
+
+      records.forEach(t => { if(t.queue) knownQueues.add(t.queue); });
       const sel = document.getElementById('f-queue');
       const cur = sel.value;
       sel.innerHTML = '<option value="">All queues</option>';
@@ -267,7 +269,8 @@
         o.value=q; o.textContent=q; if(q===cur) o.selected=true;
         sel.appendChild(o);
       });
-      renderTasks();
+
+      renderTasks(records, total, perPage);
     } catch(e) {
       document.getElementById('tasks-body').innerHTML =
         `<tr><td colspan="10" class="text-center text-danger py-4">Failed to load: ${e.message}</td></tr>`;
@@ -277,18 +280,20 @@
   async function loadWorkers() {
     try {
       const w = await fetch('/api/workers').then(r=>r.json());
-      const count = w.count || 0;
+      const workers = w.workers || [];
       const tbody = document.getElementById('workers-body');
-      if (!count) {
+      if (!workers.length) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No active workers</td></tr>';
         return;
       }
-      tbody.innerHTML = Array.from({length:count},(_,i)=>`
+      tbody.innerHTML = workers.map(wk => `
         <tr>
-          <td>worker-${i+1}</td>
-          <td class="text-center"><span class="badge bg-success">Online</span></td>
-          <td class="text-center">—</td>
-          <td class="text-center">—</td>
+          <td>worker-${wk.id}</td>
+          <td class="text-center">${wk.status === 'busy'
+            ? '<span class="badge bg-primary">Busy</span>'
+            : '<span class="badge bg-success">Idle</span>'}</td>
+          <td class="text-center">${wk.current_task || '—'}</td>
+          <td class="text-center">${wk.processed ?? 0}</td>
           <td>—</td>
         </tr>`).join('');
     } catch(e) {}
