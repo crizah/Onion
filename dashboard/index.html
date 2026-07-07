@@ -248,8 +248,12 @@
     } else {
       const truncCellCopy = (val, color) => {
         const s = val ? JSON.stringify(val) : '';
+        const esc = s.replace(/"/g,'&quot;');
+        // text truncates on its own inline-block span; the copy icon sits
+        // outside that span so it never gets clipped away with long values
+        const text = `<span style="display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle" title="${esc}">${s}</span>`;
         const copyBtn = s ? `<span class="copy-btn" title="Copy to clipboard" onclick="copyValue(${copyVals.push(s)-1},this)">&#10697;</span>` : '';
-        return `<td style="font-family:monospace;font-size:.8rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${color?';color:'+color:''}" title="${s.replace(/"/g,'&quot;')}">${s}${copyBtn}</td>`;
+        return `<td style="font-family:monospace;font-size:.8rem${color?';color:'+color:''}">${text}${copyBtn}</td>`;
       };
       tbody.innerHTML = records.map(t => `
         <tr>
