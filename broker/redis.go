@@ -41,6 +41,14 @@ func (r *RedisBroker) Dequeue(ctx context.Context, q Queue) (*task.Task, error) 
 	return &t, nil
 }
 
+func (r *RedisBroker) Ping(ctx context.Context) error {
+	return r.client.Ping(ctx).Err()
+}
+
+func (r *RedisBroker) Len(ctx context.Context, queueName string) (int64, error) {
+	return r.client.LLen(ctx, queueName).Result()
+}
+
 func (r *RedisBroker) TryDequeue(ctx context.Context, q Queue) (*task.Task, error) {
 
 	result, err := r.client.LPop(ctx, q.Name).Result()

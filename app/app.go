@@ -60,7 +60,10 @@ func New(cfg Config) (*App, error) {
     if cfg.BrokerAddr == "" { // need broker address
         return nil, errors.ErrBrokerRequired
     }
-    br := broker.New(cfg.BrokerAddr) // TODO: add error handeling here
+    br := broker.New(cfg.BrokerAddr)
+    if err := br.Ping(context.Background()); err != nil {
+        return nil, fmt.Errorf("broker: ping: %w", err)
+    }
     ba, err := backend.New(cfg.BackendURL)
     if err != nil {
         return nil, err
@@ -134,9 +137,12 @@ func (a *App) Start() error {
         wg.Add(1)
         go func(id int) {
             defer wg.Done()
+            // each worker gets its own copy — Worker.Run sorts w.Queues in
+            // place, and sharing a.Config.Queues across goroutines races
+            queues := append([]broker.Queue(nil), a.Config.Queues...)
             w := &worker.Worker{
                 ID:       id,
-                Queues:   a.Config.Queues,
+                Queues:   queues,
                 Broker:   a.Broker,
                 Registry: a.Registry,
                 Backend:  a.Backend,
@@ -148,7 +154,7 @@ func (a *App) Start() error {
 
     // 2. start dashboard
     if a.Config.DashboardAddr != "" {
-        d := dashboard.New(a.Backend, a.Pool)
+        d := dashboard.New(a.Backend, a.Pool, a.Broker, a.Config.Queues)
         go func() {
             if err := d.Start(a.Config.DashboardAddr); err != nil {
                 fmt.Printf("dashboard error: %v\n", err)

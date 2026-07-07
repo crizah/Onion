@@ -116,9 +116,13 @@ func (p *PostgresBackend) Save(ctx context.Context, r *TaskRecord) error {
 	return err
 }
 
+const maxTaskLimit = 500
+
 func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (ListResult, error) {
 	if f.Limit <= 0 {
 		f.Limit = 50
+	} else if f.Limit > maxTaskLimit {
+		f.Limit = maxTaskLimit
 	}
 	if f.Page <= 0 {
 		f.Page = 1
@@ -240,7 +244,7 @@ func (p *PostgresBackend) Get(ctx context.Context, id string) (*TaskRecord, erro
 		&t.CreatedAt, &startedAt, &completedAt, &retriedAt, &t.DurationMs,
 	)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf(errors.ErrTaskNotFound.Error(), id)
+		return nil, fmt.Errorf("%w: %s", errors.ErrTaskNotFound, id)
 	}
 	if err != nil {
 		return nil, err

@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"sort"
 	"sync"
 	"time"
 )
@@ -61,5 +62,7 @@ func (p *Pool) Snapshot() []WorkerState {
 	for _, w := range p.workers {
 		out = append(out, *w)
 	}
+	// map iteration order is randomized in Go — sort for a stable dashboard display
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
