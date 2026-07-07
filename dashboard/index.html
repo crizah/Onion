@@ -26,9 +26,7 @@
   .page-link { color: #6d28d9; }
   .page-item.active .page-link { background-color: #6d28d9; border-color: #6d28d9; }
   .dataTables-info { font-size: .8rem; color: #666; }
-  .param-cell { display:flex; align-items:center; gap:4px; max-width:150px; }
-  .param-cell .val { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
-  .copy-btn { border:none; background:transparent; cursor:pointer; font-size:.85rem; line-height:1; padding:0 2px; color:#999; flex-shrink:0; }
+  .copy-btn { cursor:pointer; font-size:.8rem; color:#999; margin-left:3px; }
   .copy-btn:hover { color:#6d28d9; }
   .copy-btn.copied { color:#198754; }
 </style>
@@ -231,10 +229,7 @@
   function shortId(id) {
     if (!id) return '';
     const idx = copyVals.push(id) - 1;
-    return `<span class="param-cell" style="display:inline-flex">
-      <span title="${id}" style="font-family:monospace;font-size:.8rem;color:#666">${id.slice(0,8)}…</span>
-      <button type="button" class="copy-btn" title="Copy to clipboard" onclick="copyValue(${idx},this)">&#10697;</button>
-    </span>`;
+    return `<span title="${id}" style="font-family:monospace;font-size:.8rem;color:#666">${id.slice(0,8)}…</span><span class="copy-btn" title="Copy to clipboard" onclick="copyValue(${idx},this)">&#10697;</span>`;
   }
 
   function renderTasks(records, total, perPage) {
@@ -251,13 +246,10 @@
     if (!records.length) {
       tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No tasks found</td></tr>';
     } else {
-      const truncCell = (val, color) => {
+      const truncCellCopy = (val, color) => {
         const s = val ? JSON.stringify(val) : '';
-        const esc = s.replace(/"/g,'&quot;');
-        const copyBtn = s ? `<button type="button" class="copy-btn" title="Copy to clipboard" onclick="copyValue(${copyVals.push(s)-1},this)">&#10697;</button>` : '';
-        return `<td class="param-cell" style="font-family:monospace;font-size:.8rem${color?';color:'+color:''}">
-          <span class="val" title="${esc}">${s}</span>${copyBtn}
-        </td>`;
+        const copyBtn = s ? `<span class="copy-btn" title="Copy to clipboard" onclick="copyValue(${copyVals.push(s)-1},this)">&#10697;</span>` : '';
+        return `<td style="font-family:monospace;font-size:.8rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${color?';color:'+color:''}" title="${s.replace(/"/g,'&quot;')}">${s}${copyBtn}</td>`;
       };
       tbody.innerHTML = records.map(t => `
         <tr>
@@ -266,9 +258,9 @@
           <td class="text-center">${stateBadge(t.status||'')}</td>
           <td>${t.queue ? `<span class="badge" style="background:#6d28d9;font-weight:400">${t.queue}</span>` : ''}</td>
           <td class="text-center">${t.retry_attempt||0}</td>
-          ${truncCell(t.args)}
-          ${truncCell(t.output)}
-          ${truncCell(t.error, t.error ? '#dc3545' : null)}
+          ${truncCellCopy(t.args)}
+          ${truncCellCopy(t.output)}
+          ${truncCellCopy(t.error, t.error ? '#dc3545' : null)}
           <td class="text-center" style="font-size:.8rem;white-space:nowrap">${fmtTime(t.started_at)}</td>
           <td class="text-center" style="white-space:nowrap">${fmtDuration(t.duration_ms)}</td>
         </tr>`).join('');
