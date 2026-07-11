@@ -3,6 +3,7 @@ package beat
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/crizah/Onion/backend"
 	"github.com/crizah/Onion/broker"
@@ -28,15 +29,18 @@ type Beat struct {
 	cron         *cron.Cron
 }
 
-func New(schedules []ScheduleEntry, br broker.Broker, queue []broker.Queue, taskRoutes map[string]string, dq string, ba backend.Backend) *Beat {
+func New(schedules []ScheduleEntry, br broker.Broker, queue []broker.Queue, taskRoutes map[string]string, dq string, ba backend.Backend, loc *time.Location) *Beat {
 	// only called when making an actual beat
+	if loc == nil {
+		loc = time.Local // preserves old behaviour when no location is configured
+	}
 	return &Beat{
 		Schedules:    schedules,
 		Broker:       br,
 		Queues:       queue,
 		DefaultQueue: dq,
 		TaskRoutes:   taskRoutes,
-		cron:         cron.New(),
+		cron:         cron.New(cron.WithLocation(loc)),
 		Backend:      ba,
 	}
 }

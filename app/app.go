@@ -7,6 +7,7 @@ import (
     "os/signal"
     "sync"
     "syscall"
+    "time"
 
     "github.com/crizah/Onion/backend"
     "github.com/crizah/Onion/beat"
@@ -35,6 +36,7 @@ type Config struct {
     TaskRoutes    map[string]string // user can update as {"taskName", "queuename"}
     DefaultQueue  string            // default queue for user to define
     DashboardAddr string            // e.g. ":8080", empty disables dashboard
+    Location      *time.Location    // timezone cron schedules are interpreted in; nil defaults to time.Local
 }
 
 func New(cfg Config) (*App, error) {
@@ -167,7 +169,7 @@ func (a *App) Start() error {
         wg.Add(1)
         go func() {
             defer wg.Done()
-            b := beat.New(a.Schedules, a.Broker, a.Config.Queues, a.Config.TaskRoutes, a.Config.DefaultQueue, a.Backend)
+            b := beat.New(a.Schedules, a.Broker, a.Config.Queues, a.Config.TaskRoutes, a.Config.DefaultQueue, a.Backend, a.Config.Location)
             if err := b.Start(ctx); err != nil {
                 // raise error here
                 fmt.Printf("beat error: %v\n", err)
@@ -207,6 +209,10 @@ func (a *App) UpdateConfig(cfg Config) error {
 
     if cfg.DefaultQueue != "" {
         a.Config.DefaultQueue = cfg.DefaultQueue
+    }
+
+    if cfg.Location != nil {
+        a.Config.Location = cfg.Location
     }
 
     // FIX 1: Safely append new queues instead of assigning by index
