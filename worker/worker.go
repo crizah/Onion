@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"sort"
 	"time"
 
@@ -36,7 +35,7 @@ func (w *Worker) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			t, q, err := w.dequeue(ctx) // dequeue in priority order
+			t, qName, err := w.dequeue(ctx) // blocks on all queues, priority order
 			if err != nil {
 				if ctx.Err() != nil {
 					return // shutting down, not a broker failure
@@ -52,7 +51,7 @@ func (w *Worker) Run(ctx context.Context) {
 				continue
 			}
 			if t == nil {
-				continue // nothing in any queue
+				continue // timed out waiting, nothing arrived — loop and block again
 			}
 
 			entry, lookupErr := w.Registry.Lookup(t.Name)
@@ -60,11 +59,11 @@ func (w *Worker) Run(ctx context.Context) {
 				fmt.Printf("[worker] lookup failed for %q: %v\n", t.Name, lookupErr)
 				t.Status = task.FAILED
 				t.CompletedAt = time.Now()
-				w.Backend.Save(ctx, &backend.TaskRecord{Task: t, Queue: q.Name, Error: lookupErr.Error()})
+				w.Backend.Save(ctx, &backend.TaskRecord{Task: t, Queue: qName, Error: lookupErr.Error()})
 				continue
 			}
 
-			record := &backend.TaskRecord{Task: t, Queue: q.Name, Config: entry.TaskConfig}
+			record := &backend.TaskRecord{Task: t, Queue: qName, Config: entry.TaskConfig}
 
 			w.Pool.SetBusy(w.ID, t.Name)
 			t.Status = task.RUNNING
@@ -91,7 +90,7 @@ func (w *Worker) Run(ctx context.Context) {
 					t.Status = task.PENDING
 					w.Backend.Save(ctx, record) // save RETRY state + retry_at
 					time.AfterFunc(backoff, func() {
-						w.Broker.Enqueue(context.Background(), q.Name, t)
+						w.Broker.Enqueue(context.Background(), qName, t)
 					})
 					fmt.Printf("[task] retried for %q", t.Name)
 				} else {
@@ -115,24 +114,9 @@ func (w *Worker) Run(ctx context.Context) {
 	}
 }
 
-func (w *Worker) dequeue(ctx context.Context) (*task.Task, broker.Queue, error) {
-	for _, q := range w.Queues {
-		t, err := w.Broker.TryDequeue(ctx, q) // LPOP, non blocking
-		if err != nil {
-			return nil, broker.Queue{}, err
-		}
-		if t != nil {
-			return t, q, nil // got one, stop checking
-		}
-	}
-	// nothing in any queue, sleep before next poll. Jittered so idle workers
-	// started back-to-back don't stay lock-stepped on the same 2s cadence —
-	// otherwise the same worker(s) tend to win the LPOP race every cycle.
-	jitter := time.Duration(rand.Intn(500)) * time.Millisecond
-	select {
-	case <-ctx.Done():
-		return nil, broker.Queue{}, ctx.Err()
-	case <-time.After(2*time.Second + jitter):
-		return nil, broker.Queue{}, nil // try again
-	}
+func (w *Worker) dequeue(ctx context.Context) (*task.Task, string, error) {
+	// Single blocking call across all queues (already priority-sorted in
+	// Run()) — Redis waits server-side and returns as soon as any queue has
+	// a task, checking queues in the order given. No busy-poll loop needed.
+	return w.Broker.Dequeue(ctx, w.Queues, 2*time.Second)
 }
