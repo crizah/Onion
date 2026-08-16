@@ -44,6 +44,14 @@ type Stats struct {
 type Backend interface {
 	Save(ctx context.Context, r *TaskRecord) error
 	Get(ctx context.Context, id string) (*TaskRecord, error)
-	List(ctx context.Context, f TaskFilter) (ListResult, error)
-	Stats(ctx context.Context) (Stats, error)
+	List(ctx context.Context, f TaskFilter) (*ListResult, error)
+	Stats(ctx context.Context) (*Stats, error)
+	migrate() error
 }
+
+type DatabaseType string
+
+const (
+	DBTypeSQLite   DatabaseType = "SQLITE"
+	DBTypePostgres DatabaseType = "POSTGRESQL"
+)

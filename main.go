@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/crizah/Onion/app"
+	"github.com/crizah/Onion/backend"
 	"github.com/crizah/Onion/broker"
 	"github.com/crizah/Onion/errors"
 
@@ -55,11 +56,12 @@ func main() {
 	godotenv.Load()
 	// ── 1. init app ──────────────────────────────────────────────────────────
 	backend_url := os.Getenv("BACKED_URl")
+	ba := app.BackendURL{DB: backend.DBTypePostgres, ConnectionString: backend_url}
 	broker_addr := os.Getenv("BROKER_URL")
 	dashboard_addr := os.Getenv("DASHBOARD_URL")
 	App, err := app.New(app.Config{
 		BrokerAddr:    broker_addr,
-		BackendURL:    backend_url,
+		BackendURL:    ba,
 		DashboardAddr: dashboard_addr,
 
 		Concurrency:  3,

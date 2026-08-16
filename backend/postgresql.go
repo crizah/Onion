@@ -23,7 +23,7 @@ type PostgresBackend struct {
 	cache *statsCache
 }
 
-func New(connStr string) (*PostgresBackend, error) {
+func NewPostgres(connStr string) (*PostgresBackend, error) {
 	// create and apply migrations here
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -118,7 +118,7 @@ func (p *PostgresBackend) Save(ctx context.Context, r *TaskRecord) error {
 
 const maxTaskLimit = 500
 
-func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (ListResult, error) {
+func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (*ListResult, error) {
 	if f.Limit <= 0 {
 		f.Limit = 50
 	} else if f.Limit > maxTaskLimit {
@@ -150,7 +150,7 @@ func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (ListResult, e
 
 	var total int
 	if err := p.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM onion_tasks"+where, args...).Scan(&total); err != nil {
-		return ListResult{}, err
+		return nil, err
 	}
 
 	q := `SELECT id, name, args, output, retry_attempt, error, status, queue, config,
@@ -160,7 +160,7 @@ func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (ListResult, e
 
 	rows, err := p.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return ListResult{}, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -177,7 +177,7 @@ func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (ListResult, e
 			&status, &r.Queue, &config,
 			&t.CreatedAt, &startedAt, &completedAt, &retriedAt, &t.DurationMs,
 		); err != nil {
-			return ListResult{}, err
+			return nil, err
 		}
 		t.Status = task.State(status)
 		t.StartedAt = startedAt.Time
@@ -192,15 +192,15 @@ func (p *PostgresBackend) List(ctx context.Context, f TaskFilter) (ListResult, e
 	if records == nil {
 		records = []*TaskRecord{}
 	}
-	return ListResult{Records: records, Total: total, Page: f.Page, Limit: f.Limit}, rows.Err()
+	return &ListResult{Records: records, Total: total, Page: f.Page, Limit: f.Limit}, rows.Err()
 }
 
-func (p *PostgresBackend) Stats(ctx context.Context) (Stats, error) {
+func (p *PostgresBackend) Stats(ctx context.Context) (*Stats, error) {
 	p.mu.Lock()
 	if p.cache != nil && time.Now().Before(p.cache.expiresAt) {
 		s := p.cache.value
 		p.mu.Unlock()
-		return s, nil
+		return &s, nil
 	}
 	p.mu.Unlock()
 
@@ -215,13 +215,13 @@ func (p *PostgresBackend) Stats(ctx context.Context) (Stats, error) {
 	`)
 	var s Stats
 	if err := row.Scan(&s.Total, &s.Pending, &s.Running, &s.Completed, &s.Failed); err != nil {
-		return Stats{}, err
+		return nil, err
 	}
 
 	p.mu.Lock()
 	p.cache = &statsCache{value: s, expiresAt: time.Now().Add(5 * time.Second)}
 	p.mu.Unlock()
-	return s, nil
+	return &s, nil
 }
 
 func (p *PostgresBackend) Get(ctx context.Context, id string) (*TaskRecord, error) {
