@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	_ "modernc.org/sqlite"
+
 	"github.com/crizah/Onion/errors"
 	"github.com/crizah/Onion/task"
 )
@@ -19,7 +21,7 @@ type sqliteBackend struct {
 }
 
 func NewSqlite(dbPath string) (*sqliteBackend, error) {
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: open: %w", err)
 	}
@@ -31,6 +33,12 @@ func NewSqlite(dbPath string) (*sqliteBackend, error) {
 	// Enable Write-Ahead Logging for better concurrent read/write performance
 	if _, err := db.Exec(`PRAGMA journal_mode = WAL;`); err != nil {
 		return nil, fmt.Errorf("sqlite: enable wal: %w", err)
+	}
+
+	// Let concurrent writers block and retry instead of failing immediately
+	// with SQLITE_BUSY when another connection holds the write lock.
+	if _, err := db.Exec(`PRAGMA busy_timeout = 5000;`); err != nil {
+		return nil, fmt.Errorf("sqlite: set busy_timeout: %w", err)
 	}
 
 	backend := &sqliteBackend{db: db}
