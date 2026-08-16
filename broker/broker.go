@@ -20,3 +20,10 @@ type Queue struct {
 	Name     string
 	Priority int
 }
+
+type BrokerType string
+
+const (
+	BrokerRedis    BrokerType = "REDIS"
+	BrokerPostgres BrokerType = "POSTGRESQL"
+)

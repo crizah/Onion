@@ -15,7 +15,7 @@ type RedisBroker struct {
 	client *redis.Client
 }
 
-func New(addr string) *RedisBroker {
+func NewRedisBroker(addr string) *RedisBroker {
 	client := redis.NewClient(&redis.Options{
 		Addr: addr,
 	})

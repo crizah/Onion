@@ -57,10 +57,12 @@ func main() {
 	// ── 1. init app ──────────────────────────────────────────────────────────
 	backend_url := os.Getenv("BACKED_URl")
 	ba := app.BackendURL{DB: backend.DBTypePostgres, ConnectionString: backend_url}
+
 	broker_addr := os.Getenv("BROKER_URL")
+	br := app.BrokerAddr{Broker: broker.BrokerRedis, Addr: broker_addr}
 	dashboard_addr := os.Getenv("DASHBOARD_URL")
 	App, err := app.New(app.Config{
-		BrokerAddr:    broker_addr,
+		BrokerAddr:    br,
 		BackendURL:    ba,
 		DashboardAddr: dashboard_addr,
 

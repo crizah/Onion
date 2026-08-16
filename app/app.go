@@ -29,7 +29,7 @@ type App struct {
 }
 
 type Config struct {
-	BrokerAddr    string
+	BrokerAddr    BrokerAddr
 	BackendURL    BackendURL
 	Concurrency   int
 	Queues        []broker.Queue
@@ -38,7 +38,10 @@ type Config struct {
 	DashboardAddr string            // e.g. ":8080", empty disables dashboard
 	Location      *time.Location    // timezone cron schedules are interpreted in; nil defaults to time.Local
 }
-
+type BrokerAddr struct {
+	Broker broker.BrokerType
+	Addr   string
+}
 type BackendURL struct {
 	DB               backend.DatabaseType
 	ConnectionString string
@@ -69,6 +72,21 @@ func backendHelper(back BackendURL) (backend.Backend, error) {
 	return ba, nil
 
 }
+
+func brokerHelper(br BrokerAddr) (broker.Broker, error) {
+	var b broker.Broker
+	var err error
+	switch br.Broker {
+	case broker.BrokerRedis:
+		b = broker.NewRedisBroker(br.Addr)
+	case broker.BrokerPostgres:
+		b, err = broker.NewPostgresBroker(br.Addr)
+	default:
+		return nil, fmt.Errorf("unsupported broker type: %q", br.Broker)
+	}
+	return b, err
+}
+
 func New(cfg Config) (*App, error) {
 	// add defaults in here at some point
 
@@ -89,10 +107,15 @@ func New(cfg Config) (*App, error) {
 		}
 	}
 
-	if cfg.BrokerAddr == "" { // need broker address
+	if cfg.BrokerAddr.Addr == "" { // need broker address
 		return nil, errors.ErrBrokerRequired
 	}
-	br := broker.New(cfg.BrokerAddr)
+	// find out which broker
+	br, err := brokerHelper(cfg.BrokerAddr)
+	if err != nil {
+		return nil, err
+	}
+	// only need this ping for redis i think
 	if err := br.Ping(context.Background()); err != nil {
 		return nil, fmt.Errorf("broker: ping: %w", err)
 	}
@@ -218,10 +241,15 @@ func (a *App) UpdateConfig(cfg Config) error {
 	if a.running {
 		return errors.ErrAppRunning
 	}
-	if cfg.BrokerAddr != "" { // recompute
-		// TODO: add error handeling here
+
+	// this wont work because sqs doesnt have a addr field
+	if cfg.BrokerAddr.Addr != "" { // recompute
 		a.Config.BrokerAddr = cfg.BrokerAddr
-		a.Broker = broker.New(cfg.BrokerAddr) // recompute
+		br, err := brokerHelper(cfg.BrokerAddr)
+		if err != nil {
+			return err
+		}
+		a.Broker = br // recompute
 	}
 	if cfg.BackendURL.ConnectionString != "" { //recompute
 		a.Config.BackendURL = cfg.BackendURL
