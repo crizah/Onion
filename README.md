@@ -1,7 +1,7 @@
 - Task Queueing system that uses redis for the queues and postgresql for the backend. 
 - Uses goroutines to carry out the tasks, pretty much an abstraction over goroutine tasks with more tranperency + you can define worker queues. 
 - Like celery
-- Has a "real time" dashboard to moniter taska, workers and queue depths
+- Has a "real time" dashboard to moniter tasks, workers and queue depths
 - Configurable worker pools with priority queues, critical tasks always run first
 - Gives you more control over goroutines as they go to a broker queue and can be ingested by any machine, goroutines run on the main server machine, these tasks can be ingested by any worker machine. 
 - Supports beat scheduling tasks (repeated cron tasks)
